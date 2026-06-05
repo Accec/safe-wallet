@@ -52,7 +52,7 @@ fn network_privacy_commands_save_and_load_proxy_settings() {
     let body: Value = serde_json::from_str(&loaded.body_json).unwrap();
     assert_eq!(body["proxy_enabled"], true);
     assert_eq!(body["proxy_mode"], "tor");
-    assert_eq!(body["proxy_url"], "socks5://127.0.0.1:9050");
+    assert_eq!(body["proxy_url"], "socks5h://127.0.0.1:9050");
 }
 
 #[test]

@@ -4,7 +4,7 @@ use reqwest::blocking::Client;
 use reqwest::{Proxy, Url};
 use std::time::Duration;
 
-pub const DEFAULT_TOR_PROXY_URL: &str = "socks5://127.0.0.1:9050";
+pub const DEFAULT_TOR_PROXY_URL: &str = "socks5h://127.0.0.1:9050";
 
 pub fn default_network_privacy_settings() -> NetworkPrivacySettings {
     NetworkPrivacySettings {
@@ -83,6 +83,7 @@ mod tests {
             "http://127.0.0.1:8080",
             "https://127.0.0.1:8443",
             "socks5://127.0.0.1:9050",
+            "socks5h://127.0.0.1:9050",
         ] {
             assert_eq!(validate_proxy_url(url), Ok(()));
         }
@@ -99,7 +100,7 @@ mod tests {
     }
 
     #[test]
-    fn tor_mode_uses_default_socks_proxy_when_url_is_empty() {
+    fn tor_mode_uses_default_socks_proxy_with_remote_dns_when_url_is_empty() {
         let settings = normalize_network_privacy_settings(NetworkPrivacySettings {
             proxy_enabled: true,
             proxy_mode: ProxyMode::Tor,
@@ -108,6 +109,10 @@ mod tests {
         .unwrap();
 
         assert_eq!(settings.proxy_url.as_deref(), Some(DEFAULT_TOR_PROXY_URL));
+        assert_eq!(
+            settings.proxy_url.as_deref(),
+            Some("socks5h://127.0.0.1:9050")
+        );
     }
 
     #[test]

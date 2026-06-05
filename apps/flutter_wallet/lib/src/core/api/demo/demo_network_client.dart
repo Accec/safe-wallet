@@ -16,7 +16,7 @@ class DemoNetworkClient {
       proxyEnabled: draft.proxyEnabled,
       proxyMode: draft.proxyMode,
       proxyUrl: draft.proxyEnabled && draft.proxyMode == 'tor'
-          ? (draft.proxyUrl ?? 'socks5://127.0.0.1:9050')
+          ? (draft.proxyUrl ?? 'socks5h://127.0.0.1:9050')
           : draft.proxyUrl,
     );
   }

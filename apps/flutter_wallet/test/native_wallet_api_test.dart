@@ -124,7 +124,7 @@ void main() {
             return okV2(command, <String, Object?>{
               'proxy_enabled': true,
               'proxy_mode': 'tor',
-              'proxy_url': 'socks5://127.0.0.1:9050',
+              'proxy_url': 'socks5h://127.0.0.1:9050',
             });
           case 'network.save_privacy':
           case 'network.test_proxy':
@@ -137,7 +137,7 @@ void main() {
     final settings = await api.networkPrivacySettings();
     expect(settings.proxyEnabled, isTrue);
     expect(settings.proxyMode, 'tor');
-    expect(settings.proxyUrl, 'socks5://127.0.0.1:9050');
+    expect(settings.proxyUrl, 'socks5h://127.0.0.1:9050');
 
     await api.saveNetworkPrivacySettings(
       const NetworkPrivacySettingsDraft(

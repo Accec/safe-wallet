@@ -997,7 +997,7 @@ void main() {
 
     expect(api.savedNetworkPrivacy?.proxyEnabled, isTrue);
     expect(api.savedNetworkPrivacy?.proxyMode, 'tor');
-    expect(api.savedNetworkPrivacy?.proxyUrl, 'socks5://127.0.0.1:9050');
+    expect(api.savedNetworkPrivacy?.proxyUrl, 'socks5h://127.0.0.1:9050');
     expect(api.proxyTested, isTrue);
   });
 }
