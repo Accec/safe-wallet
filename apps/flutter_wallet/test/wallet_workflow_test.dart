@@ -923,6 +923,12 @@ void main() {
     await tester.pumpWidget(_settingsHarness(api));
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.text('Biometrics'),
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.byType(Switch).first);
     await tester.pumpAndSettle();
     await tester.enterText(_textField('Master password'), 'master-password');

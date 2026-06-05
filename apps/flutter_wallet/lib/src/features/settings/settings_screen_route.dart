@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app_update.dart';
 import '../../core/state/wallet_providers.dart';
 import '../../models.dart';
 import 'network_privacy_dialog.dart';
 import 'network_settings_dialog.dart';
 import 'settings_screen_body.dart';
 import 'settings_security_actions.dart';
+import 'settings_update_actions.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -18,9 +20,13 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late Future<List<NetworkSettings>> _networks;
   late Future<NetworkPrivacySettings> _networkPrivacy;
+  AppUpdateInfo? _updateInfo;
   bool _securityLoading = true;
   bool _securityBusy = false;
   bool _biometricEnabled = false;
+  bool _checkingUpdate = false;
+  bool _updating = false;
+  double? _updateProgress;
 
   SettingsSecurityActions get _securityActions => SettingsSecurityActions(
     context: context,
@@ -28,6 +34,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     isMounted: () => mounted,
     setBiometricEnabled: _setBiometricEnabled,
     setSecurityBusy: _setSecurityBusy,
+  );
+
+  SettingsUpdateActions get _updateActions => SettingsUpdateActions(
+    context: context,
+    ref: ref,
+    isMounted: () => mounted,
+    setCheckingUpdate: _setCheckingUpdate,
+    setUpdating: _setUpdating,
+    setUpdateProgress: _setUpdateProgress,
+    setUpdateInfo: _setUpdateInfo,
   );
 
   @override
@@ -62,6 +78,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     });
   }
 
+  void _setCheckingUpdate(bool checking) {
+    setState(() {
+      _checkingUpdate = checking;
+    });
+  }
+
+  void _setUpdating(bool updating) {
+    setState(() {
+      _updating = updating;
+    });
+  }
+
+  void _setUpdateProgress(double? progress) {
+    setState(() {
+      _updateProgress = progress;
+    });
+  }
+
+  void _setUpdateInfo(AppUpdateInfo? info) {
+    setState(() {
+      _updateInfo = info;
+    });
+  }
+
   Future<void> _loadSecurityStatus() async {
     try {
       final status = await ref.read(walletApiProvider).appStatus();
@@ -86,13 +126,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final api = ref.read(walletApiProvider);
     final securityActions = _securityActions;
+    final updateActions = _updateActions;
 
     return SettingsScreenBody(
       networks: _networks,
       networkPrivacy: _networkPrivacy,
+      updateInfo: _updateInfo,
       biometricEnabled: _biometricEnabled,
       securityLoading: _securityLoading,
       securityBusy: _securityBusy,
+      checkingUpdate: _checkingUpdate,
+      updating: _updating,
+      updateProgress: _updateProgress,
       onEditNetwork: (network) => showNetworkSettingsDialog(
         context: context,
         api: api,
@@ -110,6 +155,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         settings: settings,
         onSaved: _reloadNetworkPrivacy,
       ),
+      onCheckForUpdates: updateActions.checkForUpdates,
+      onRunUpdateAction: () => updateActions.runUpdateAction(_updateInfo),
       onBiometricChanged: securityActions.toggleBiometrics,
       onAdvancedSecurity: securityActions.openAdvancedSecurity,
       onLock: securityActions.lock,

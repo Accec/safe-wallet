@@ -4,6 +4,9 @@ class WalletApiException implements Exception {
   const WalletApiException(this.message);
 
   final String message;
+
+  @override
+  String toString() => message;
 }
 
 abstract class WalletApi {

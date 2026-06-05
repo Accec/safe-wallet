@@ -43,6 +43,7 @@ flutter {
 }
 
 dependencies {
+    implementation("androidx.core:core:1.13.1")
     implementation(files("libs/zxing-core-3.5.3.jar"))
 }
 
