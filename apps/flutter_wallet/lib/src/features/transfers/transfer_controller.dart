@@ -1,0 +1,89 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/api/wallet_clients.dart';
+import '../../models.dart';
+
+final transferControllerProvider =
+    NotifierProvider<TransferController, TransferState>(TransferController.new);
+
+class TransferState {
+  const TransferState({
+    this.previewing = false,
+    this.sending = false,
+    this.preview,
+    this.draft,
+  });
+
+  final bool previewing;
+  final bool sending;
+  final TransferPreview? preview;
+  final TransferDraft? draft;
+
+  TransferState copyWith({
+    bool? previewing,
+    bool? sending,
+    TransferPreview? preview,
+    TransferDraft? draft,
+    bool clearPreview = false,
+    bool clearDraft = false,
+  }) {
+    return TransferState(
+      previewing: previewing ?? this.previewing,
+      sending: sending ?? this.sending,
+      preview: clearPreview ? null : preview ?? this.preview,
+      draft: clearDraft ? null : draft ?? this.draft,
+    );
+  }
+}
+
+class TransferController extends Notifier<TransferState> {
+  @override
+  TransferState build() => const TransferState();
+
+  WalletClients get _clients => ref.read(walletClientsProvider);
+
+  Future<ParsedPayment> parsePaymentUri(String payload) {
+    return _clients.transfers.parsePaymentUri(payload);
+  }
+
+  Future<void> preview(TransferDraft draft) async {
+    state = state.copyWith(
+      previewing: true,
+      clearPreview: true,
+      clearDraft: true,
+    );
+    try {
+      final preview = await _clients.transfers.preview(draft);
+      state = state.copyWith(previewing: false, preview: preview, draft: draft);
+    } catch (_) {
+      state = state.copyWith(previewing: false);
+      rethrow;
+    }
+  }
+
+  Future<TransferResult> send(String password) async {
+    final draft = state.draft;
+    if (draft == null) {
+      throw const TransferStateException('Unlock again before sending.');
+    }
+    state = state.copyWith(sending: true);
+    try {
+      final result = await _clients.transfers.send(draft, password);
+      state = state.copyWith(sending: false);
+      return result;
+    } catch (_) {
+      state = state.copyWith(sending: false);
+      rethrow;
+    }
+  }
+
+  void clearPreview() {
+    state = state.copyWith(clearPreview: true, clearDraft: true);
+  }
+}
+
+class TransferStateException implements Exception {
+  const TransferStateException(this.message);
+
+  final String message;
+}

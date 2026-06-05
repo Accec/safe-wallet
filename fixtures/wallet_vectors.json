@@ -1,0 +1,25 @@
+{
+  "mnemonic": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+  "accounts": [
+    {
+      "chain": "btc",
+      "path": "m/84'/0'/0'/0/0",
+      "address_prefix": "bc1"
+    },
+    {
+      "chain": "ethereum",
+      "path": "m/44'/60'/0'/0/0",
+      "address_prefix": "0x"
+    },
+    {
+      "chain": "tron",
+      "path": "m/44'/195'/0'/0/0",
+      "address_prefix": "T"
+    }
+  ],
+  "qr_payloads": [
+    "bitcoin:bc1qexample000000000000000000000000000000000?amount=0.001",
+    "ethereum:0x0000000000000000000000000000000000000000?value=1000000000000000",
+    "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7"
+  ]
+}
