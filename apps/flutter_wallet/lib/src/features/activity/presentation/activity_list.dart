@@ -5,9 +5,14 @@ import '../../../models.dart';
 import 'activity_row.dart';
 
 class ActivityList extends StatelessWidget {
-  const ActivityList({super.key, required this.activity});
+  const ActivityList({
+    super.key,
+    required this.activity,
+    this.onOpenActivityUrl,
+  });
 
   final List<ActivitySummary> activity;
+  final ValueChanged<Uri>? onOpenActivityUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +37,10 @@ class ActivityList extends StatelessWidget {
       for (var index = 0; index < activity.length; index++)
         StaggeredListItem(
           index: index,
-          child: ActivityRow(record: activity[index]),
+          child: ActivityRow(
+            record: activity[index],
+            onOpenActivityUrl: onOpenActivityUrl,
+          ),
         ),
     ];
   }

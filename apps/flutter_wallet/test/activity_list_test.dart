@@ -31,4 +31,35 @@ void main() {
     expect(find.text('0x123456...90abcdef'), findsOneWidget);
     expect(find.text('native_transfer'), findsNothing);
   });
+
+  testWidgets('activity item opens the matching scan transaction URL', (
+    tester,
+  ) async {
+    final openedUrls = <Uri>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ActivityList(
+            activity: const [
+              ActivitySummary(
+                chain: 'polygon',
+                txHash: '0xpolygonhash',
+                kind: 'native_transfer',
+                status: 'confirmed',
+                summary: 'Received 3.5 MATIC',
+              ),
+            ],
+            onOpenActivityUrl: openedUrls.add,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Received'));
+    await tester.pumpAndSettle();
+
+    expect(openedUrls, [Uri.parse('https://polygonscan.com/tx/0xpolygonhash')]);
+  });
 }

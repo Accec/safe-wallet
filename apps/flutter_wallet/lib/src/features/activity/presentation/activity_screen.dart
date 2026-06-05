@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/ui/busy_icon.dart';
 import '../../../models.dart';
@@ -52,6 +55,23 @@ class _ActivityScreenState extends State<ActivityScreen> {
     }
   }
 
+  Future<void> _openActivityUrl(Uri url) async {
+    try {
+      final opened = await launchUrl(url, mode: LaunchMode.externalApplication);
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to open scan URL')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to open scan URL: $error')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -65,7 +85,12 @@ class _ActivityScreenState extends State<ActivityScreen> {
           ),
         ],
       ),
-      body: ActivityList(activity: widget.activity),
+      body: ActivityList(
+        activity: widget.activity,
+        onOpenActivityUrl: (url) {
+          unawaited(_openActivityUrl(url));
+        },
+      ),
     );
   }
 }
