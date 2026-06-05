@@ -4,7 +4,7 @@
 
 **Goal:** Add an in-app update flow that checks GitHub Releases and performs the best available platform action.
 
-**Architecture:** Add a focused Dart update service for release discovery, version comparison, download, digest verification, and platform actions. Wire it into Settings with an injectable interface so widget tests use a fake service. Add one Android MethodChannel action to hand a downloaded APK to the system installer.
+**Architecture:** Add a focused Dart update service for release discovery, version comparison, download, digest verification, and platform actions. Wire it into Settings with an injectable interface so widget tests use a fake service. Add native MethodChannel actions for Android APK installation and macOS app bundle replacement.
 
 **Tech Stack:** Flutter/Dart, GitHub Releases API, `dart:io`, `package_info_plus`, `url_launcher`, Android Kotlin MethodChannel, Android FileProvider.
 
@@ -55,3 +55,15 @@
 - [ ] Run `flutter test`.
 - [ ] Run `flutter analyze`.
 - [ ] Run Rust tests if native files changed are unrelated to Rust core only if needed.
+
+### Task 5: macOS App Replacement
+
+**Files:**
+- Modify: `apps/flutter_wallet/lib/src/app_update.dart`
+- Modify: `apps/flutter_wallet/macos/Runner/MainFlutterWindow.swift`
+- Modify: `apps/flutter_wallet/test/app_update_test.dart`
+
+- [ ] Add a regression test that macOS update actions call the native installer channel.
+- [ ] Add `installMacosUpdate` to the macOS Runner.
+- [ ] Have the native updater wait for the current app to exit, extract the verified zip, replace the current `.app`, and relaunch it.
+- [ ] Run Flutter tests, analysis, and macOS debug build verification.

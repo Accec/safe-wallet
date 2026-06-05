@@ -13,9 +13,10 @@ download the release asset itself instead of sending the user to a browser first
   package installer with the downloaded APK. Android still shows the system
   install confirmation UI.
 - macOS checks the latest GitHub Release, downloads the matching macOS zip asset,
-  verifies the asset digest when available, and opens the downloaded file from
-  the app. A later Sparkle integration can replace this with a signed appcast and
-  automatic app replacement.
+  verifies the asset digest when available, asks the native Runner to extract the
+  zip, replaces the current `.app` bundle, and relaunches the app. A later
+  Sparkle integration can replace this with a signed appcast and a more robust
+  updater.
 - iOS checks the latest GitHub Release and opens the release page when a newer
   version exists. iOS does not download and install executable app updates from
   inside the app.
@@ -39,7 +40,7 @@ latest checked version, update status, and a `Check for updates` button. If a
 new version exists, the user can start the platform action:
 
 - Android: `Download and install`
-- macOS: `Download update`
+- macOS: `Download and install`
 - iOS: `Open download page`
 
 The UI shows download progress for Android and macOS, and reports clear errors

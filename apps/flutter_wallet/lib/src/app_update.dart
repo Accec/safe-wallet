@@ -194,6 +194,9 @@ class AppUpdateInfo {
     if (platform == UpdatePlatform.android) {
       return 'Download and install';
     }
+    if (platform == UpdatePlatform.macos) {
+      return 'Download and install';
+    }
     return 'Download update';
   }
 }
@@ -278,10 +281,9 @@ class GitHubAppUpdateService implements AppUpdateService {
       return;
     }
     if (update.info.platform == UpdatePlatform.macos) {
-      final result = await Process.run('open', [update.file.path]);
-      if (result.exitCode != 0) {
-        throw const AppUpdateException('Could not open downloaded update');
-      }
+      await _platformChannel.invokeMethod<void>('installMacosUpdate', {
+        'path': update.file.path,
+      });
       return;
     }
     await openReleasePage(update.info);

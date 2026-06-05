@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_wallet/src/app_update.dart';
 
@@ -54,6 +55,53 @@ void main() {
       () => verifySha256Digest(file, 'sha256:${'0' * 64}'),
       throwsA(isA<AppUpdateException>()),
     );
+  });
+
+  test('macos install action asks native layer to replace the app', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    const channel = MethodChannel('test.safe_wallet/app_update');
+    MethodCall? capturedCall;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          capturedCall = call;
+          return null;
+        });
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+
+    final file = File(
+      '${Directory.systemTemp.path}/safe-wallet-macos-v1.2.3.zip',
+    );
+    final service = GitHubAppUpdateService(
+      platform: UpdatePlatform.macos,
+      platformChannel: channel,
+    );
+
+    await service.installOrOpenUpdate(
+      DownloadedUpdate(
+        file: file,
+        info: AppUpdateInfo(
+          currentVersion: '1.2.2',
+          latestVersion: '1.2.3',
+          updateAvailable: true,
+          releasePageUrl:
+              'https://github.com/Accec/safe-wallet/releases/tag/v1.2.3',
+          platform: UpdatePlatform.macos,
+          asset: AppUpdateAsset(
+            name: 'safe-wallet-macos-v1.2.3.zip',
+            downloadUrl: 'https://example.invalid/macos.zip',
+            size: 200,
+            digest:
+                'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+          ),
+        ),
+      ),
+    );
+
+    expect(capturedCall?.method, 'installMacosUpdate');
+    expect(capturedCall?.arguments, {'path': file.path});
   });
 }
 

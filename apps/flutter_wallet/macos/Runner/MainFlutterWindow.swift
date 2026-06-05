@@ -8,6 +8,7 @@ class MainFlutterWindow: NSWindow {
   static let defaultFrame = NSRect(x: 0, y: 0, width: 1000, height: 720)
   private var didConfigureFlutter = false
   private var qrScannerChannel: FlutterMethodChannel?
+  private var appUpdateChannel: FlutterMethodChannel?
   private var pendingScanResult: FlutterResult?
 
   override func awakeFromNib() {
@@ -33,6 +34,7 @@ class MainFlutterWindow: NSWindow {
     if !didConfigureFlutter {
       RegisterGeneratedPlugins(registry: flutterViewController)
       configureQrScannerChannel(flutterViewController)
+      configureAppUpdateChannel(flutterViewController)
       didConfigureFlutter = true
     }
 
@@ -61,6 +63,33 @@ class MainFlutterWindow: NSWindow {
       }
     }
     qrScannerChannel = channel
+  }
+
+  private func configureAppUpdateChannel(_ flutterViewController: FlutterViewController) {
+    let channel = FlutterMethodChannel(
+      name: "app.localwallet/app_update",
+      binaryMessenger: flutterViewController.engine.binaryMessenger)
+    channel.setMethodCallHandler { call, result in
+      guard call.method == "installMacosUpdate" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+
+      guard
+        let arguments = call.arguments as? [String: Any],
+        let path = arguments["path"] as? String,
+        !path.isEmpty
+      else {
+        result(FlutterError(
+          code: "invalid_args",
+          message: "Downloaded update path is required.",
+          details: nil))
+        return
+      }
+
+      installMacosUpdate(zipPath: path, result: result)
+    }
+    appUpdateChannel = channel
   }
 
   private func scanQr(
@@ -131,6 +160,117 @@ private func decodeQrImage(_ url: URL) -> String? {
     .features(in: image)
     .compactMap { ($0 as? CIQRCodeFeature)?.messageString }
     .first
+}
+
+private func installMacosUpdate(zipPath: String, result: @escaping FlutterResult) {
+  let fileManager = FileManager.default
+  let zipURL = URL(fileURLWithPath: zipPath)
+  let appURL = Bundle.main.bundleURL
+
+  guard fileManager.fileExists(atPath: zipURL.path) else {
+    result(FlutterError(
+      code: "missing_update",
+      message: "Downloaded update file was not found.",
+      details: nil))
+    return
+  }
+
+  guard zipURL.pathExtension.lowercased() == "zip" else {
+    result(FlutterError(
+      code: "invalid_update",
+      message: "Downloaded update is not a macOS zip archive.",
+      details: nil))
+    return
+  }
+
+  guard appURL.pathExtension.lowercased() == "app" else {
+    result(FlutterError(
+      code: "invalid_app_bundle",
+      message: "Current app bundle could not be found.",
+      details: nil))
+    return
+  }
+
+  do {
+    let scriptURL = try writeMacosUpdateScript()
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/bin/sh")
+    process.arguments = [scriptURL.path, zipURL.path, appURL.path, String(getpid())]
+    try process.run()
+    result(nil)
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+      NSApp.terminate(nil)
+    }
+  } catch {
+    result(FlutterError(
+      code: "install_failed",
+      message: "Could not prepare macOS update installer.",
+      details: error.localizedDescription))
+  }
+}
+
+private func writeMacosUpdateScript() throws -> URL {
+  let fileManager = FileManager.default
+  let scriptDirectory = fileManager.temporaryDirectory
+    .appendingPathComponent("safe-wallet-updates", isDirectory: true)
+  try fileManager.createDirectory(
+    at: scriptDirectory,
+    withIntermediateDirectories: true)
+
+  let scriptURL = scriptDirectory.appendingPathComponent(
+    "install-\(UUID().uuidString).sh")
+  let script = """
+#!/bin/sh
+set -u
+
+SCRIPT_PATH="$0"
+ZIP_PATH="$1"
+APP_PATH="$2"
+APP_PID="$3"
+
+fail() {
+  /usr/bin/osascript -e "display alert \\"Safe Wallet update failed\\" message \\"$1\\"" >/dev/null 2>&1 || true
+  /bin/rm -f "$SCRIPT_PATH"
+  exit 1
+}
+
+EXTRACT_DIR="$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/safe-wallet-update.XXXXXX")" || fail "Could not create a temporary update directory."
+cleanup() {
+  /bin/rm -rf "$EXTRACT_DIR"
+  /bin/rm -f "$SCRIPT_PATH"
+}
+trap cleanup EXIT
+
+while /bin/kill -0 "$APP_PID" >/dev/null 2>&1; do
+  /bin/sleep 0.2
+done
+
+/usr/bin/ditto -x -k "$ZIP_PATH" "$EXTRACT_DIR" || fail "Could not extract the downloaded update."
+NEW_APP="$(/usr/bin/find "$EXTRACT_DIR" -type d -name "*.app" -print | /usr/bin/head -n 1)"
+if [ -z "$NEW_APP" ]; then
+  fail "The downloaded update did not contain a macOS app."
+fi
+
+APP_PARENT="$(/usr/bin/dirname "$APP_PATH")"
+APP_NAME="$(/usr/bin/basename "$APP_PATH")"
+BACKUP_PATH="$APP_PARENT/.$APP_NAME.updating-backup"
+
+/bin/rm -rf "$BACKUP_PATH"
+/bin/mv "$APP_PATH" "$BACKUP_PATH" || fail "Could not prepare the existing app for replacement."
+if /bin/mv "$NEW_APP" "$APP_PATH"; then
+  /bin/rm -rf "$BACKUP_PATH"
+  /bin/rm -f "$ZIP_PATH"
+  /usr/bin/open "$APP_PATH"
+else
+  /bin/mv "$BACKUP_PATH" "$APP_PATH" >/dev/null 2>&1 || true
+  fail "The app could not be replaced. Check permissions and try again."
+fi
+"""
+  try script.write(to: scriptURL, atomically: true, encoding: .utf8)
+  try fileManager.setAttributes(
+    [.posixPermissions: 0o700],
+    ofItemAtPath: scriptURL.path)
+  return scriptURL
 }
 
 final class MacQrScannerViewController: NSViewController, AVCaptureVideoDataOutputSampleBufferDelegate {
