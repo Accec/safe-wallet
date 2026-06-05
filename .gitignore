@@ -1,0 +1,48 @@
+# macOS and editor state
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Logs and local environment
+*.log
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Rust
+target/
+
+# JavaScript tooling
+node_modules/
+dist/
+
+# Flutter and Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+coverage/
+
+# Android local/generated files
+**/android/.gradle/
+**/android/local.properties
+**/android/app/src/main/jniLibs/
+**/android/app/build/
+
+# iOS/macOS local/generated files
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/ephemeral/
+**/ios/Pods/
+**/ios/.symlinks/
+**/macos/Flutter/ephemeral/
+**/macos/Pods/
+**/macos/.symlinks/
+**/DerivedData/
+
+# Release packaging output
+release-assets/

@@ -1,0 +1,313 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to publish, for example v1.0.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  FLUTTER_PROJECT_DIR: apps/flutter_wallet
+  ANDROID_NDK_VERSION: 27.0.12077973
+
+jobs:
+  release-metadata:
+    name: Validate release tag
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.metadata.outputs.tag }}
+      version: ${{ steps.metadata.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate tag is on master
+        id: metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            release_tag="${{ inputs.release_tag }}"
+          else
+            release_tag="${GITHUB_REF_NAME}"
+          fi
+
+          if [[ ! "$release_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.+][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Release tag must look like v1.2.3 or v1.2.3-rc.1: $release_tag" >&2
+            exit 64
+          fi
+
+          git fetch --force origin \
+            "refs/heads/master:refs/remotes/origin/master" \
+            "refs/tags/${release_tag}:refs/tags/${release_tag}"
+
+          release_sha="$(git rev-list -n 1 "${release_tag}^{commit}")"
+          if ! git merge-base --is-ancestor "$release_sha" origin/master; then
+            echo "Tag $release_tag points to $release_sha, which is not reachable from origin/master." >&2
+            exit 65
+          fi
+
+          echo "tag=$release_tag" >> "$GITHUB_OUTPUT"
+          echo "version=${release_tag#v}" >> "$GITHUB_OUTPUT"
+
+  rust-cli:
+    name: Rust CLI (${{ matrix.platform }})
+    needs: release-metadata
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x64
+          - os: macos-latest
+            platform: macos-x64
+          - os: windows-latest
+            platform: windows-x64
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build CLI
+        run: cargo build --locked --release -p wallet_cli
+
+      - name: Package Unix CLI
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp target/release/wallet_cli "dist/safe-wallet-cli-${{ matrix.platform }}"
+          tar -czf "safe-wallet-cli-${{ matrix.platform }}.tar.gz" -C dist "safe-wallet-cli-${{ matrix.platform }}"
+
+      - name: Package Windows CLI
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item target/release/wallet_cli.exe "dist/safe-wallet-cli-${{ matrix.platform }}.exe"
+          Compress-Archive -Path "dist/safe-wallet-cli-${{ matrix.platform }}.exe" -DestinationPath "safe-wallet-cli-${{ matrix.platform }}.zip" -Force
+
+      - name: Upload CLI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-cli-${{ matrix.platform }}
+          path: |
+            safe-wallet-cli-${{ matrix.platform }}.tar.gz
+            safe-wallet-cli-${{ matrix.platform }}.zip
+          if-no-files-found: error
+
+  flutter-android:
+    name: Flutter Android
+    needs: release-metadata
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: armv7-linux-androideabi,aarch64-linux-android,x86_64-linux-android
+
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install Android NDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install "ndk;${ANDROID_NDK_VERSION}"
+          echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+
+      - name: Build Android APK and app bundle
+        working-directory: ${{ env.FLUTTER_PROJECT_DIR }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter config --no-analytics
+          flutter pub get
+          flutter build apk \
+            --release \
+            --build-name "${{ needs.release-metadata.outputs.version }}" \
+            --build-number "${{ github.run_number }}"
+          flutter build appbundle \
+            --release \
+            --build-name "${{ needs.release-metadata.outputs.version }}" \
+            --build-number "${{ github.run_number }}"
+
+          mkdir -p ../../dist/android
+          cp build/app/outputs/flutter-apk/app-release.apk \
+            "../../dist/android/safe-wallet-android-${{ needs.release-metadata.outputs.tag }}.apk"
+          cp build/app/outputs/bundle/release/app-release.aab \
+            "../../dist/android/safe-wallet-android-${{ needs.release-metadata.outputs.tag }}.aab"
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-android
+          path: dist/android/*
+          if-no-files-found: error
+
+  flutter-macos:
+    name: Flutter macOS
+    needs: release-metadata
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Build macOS app
+        working-directory: ${{ env.FLUTTER_PROJECT_DIR }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter config --no-analytics --enable-macos-desktop
+          flutter pub get
+          flutter build macos \
+            --release \
+            --build-name "${{ needs.release-metadata.outputs.version }}" \
+            --build-number "${{ github.run_number }}"
+
+          app_path="$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' -print -quit)"
+          if [[ -z "$app_path" ]]; then
+            echo "No macOS .app was produced." >&2
+            exit 66
+          fi
+
+          mkdir -p ../../dist/macos
+          ditto -c -k --keepParent "$app_path" \
+            "../../dist/macos/safe-wallet-macos-${{ needs.release-metadata.outputs.tag }}.zip"
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-macos
+          path: dist/macos/*
+          if-no-files-found: error
+
+  flutter-ios:
+    name: Flutter iOS unsigned
+    needs: release-metadata
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Build unsigned iOS app
+        working-directory: ${{ env.FLUTTER_PROJECT_DIR }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter config --no-analytics
+          flutter pub get
+          flutter build ios \
+            --release \
+            --no-codesign \
+            --build-name "${{ needs.release-metadata.outputs.version }}" \
+            --build-number "${{ github.run_number }}"
+
+          app_path="build/ios/iphoneos/Runner.app"
+          if [[ ! -d "$app_path" ]]; then
+            echo "No iOS Runner.app was produced." >&2
+            exit 66
+          fi
+
+          mkdir -p ../../dist/ios/Payload
+          cp -R "$app_path" ../../dist/ios/Payload/
+          (cd ../../dist/ios && zip -qry "../safe-wallet-ios-unsigned-${{ needs.release-metadata.outputs.tag }}.ipa" Payload)
+
+      - name: Upload iOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-ios
+          path: dist/safe-wallet-ios-unsigned-*.ipa
+          if-no-files-found: error
+
+  publish-release:
+    name: Publish GitHub Release
+    needs:
+      - release-metadata
+      - rust-cli
+      - flutter-android
+      - flutter-macos
+      - flutter-ios
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.release-metadata.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' release_assets < <(find release-assets -type f -print0 | sort -z)
+
+          if [[ "${#release_assets[@]}" -eq 0 ]]; then
+            echo "No release assets were downloaded." >&2
+            exit 66
+          fi
+
+          printf '%s\n' "${release_assets[@]}"
+
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "${release_assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$RELEASE_TAG" "${release_assets[@]}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Safe Wallet ${RELEASE_TAG}" \
+              --generate-notes
+          fi
