@@ -99,6 +99,46 @@ void main() {
     expect(updated, isTrue);
   });
 
+  testWidgets('settings update section animates before byte progress arrives', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ListView(
+            children: [
+              SettingsUpdateSection(
+                updateInfo: const AppUpdateInfo(
+                  currentVersion: '1.0.0',
+                  latestVersion: '1.2.3',
+                  updateAvailable: true,
+                  releasePageUrl:
+                      'https://github.com/Accec/safe-wallet/releases/tag/v1.2.3',
+                  platform: UpdatePlatform.macos,
+                  asset: AppUpdateAsset(
+                    name: 'safe-wallet-macos-v1.2.3.zip',
+                    downloadUrl: 'https://example.invalid/macos.zip',
+                    size: 2048,
+                  ),
+                ),
+                checking: false,
+                updating: true,
+                progress: 0,
+                onCheck: () {},
+                onRunUpdateAction: () {},
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final indicator = tester.widget<LinearProgressIndicator>(
+      find.byType(LinearProgressIndicator),
+    );
+    expect(indicator.value, isNull);
+  });
+
   testWidgets('settings update section exposes ios release page action', (
     tester,
   ) async {

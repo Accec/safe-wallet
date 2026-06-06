@@ -24,6 +24,12 @@ class SettingsUpdateSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final info = updateInfo;
+    final showDownloadProgress =
+        info?.asset != null && (updating || progress != null);
+    final rawProgress = progress;
+    final progressValue = rawProgress == null || rawProgress <= 0
+        ? null
+        : rawProgress.clamp(0.0, 1.0).toDouble();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -34,9 +40,9 @@ class SettingsUpdateSection extends StatelessWidget {
           title: const Text('Safe Wallet'),
           subtitle: Text(_statusText(info)),
         ),
-        if (progress != null) ...[
+        if (showDownloadProgress) ...[
           const SizedBox(height: 8),
-          LinearProgressIndicator(value: progress),
+          LinearProgressIndicator(value: progressValue),
         ],
         const SizedBox(height: 8),
         Wrap(
