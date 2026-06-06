@@ -204,3 +204,112 @@ fn discover_chain_assets_saves_indexed_tokens_and_refreshes_balances() {
     );
     assert_eq!(usdc.balance, "7.25");
 }
+
+#[test]
+fn discover_chain_assets_uses_evm_rpc_metadata_before_refreshing_balance() {
+    struct FakeDiscoveryProvider;
+
+    impl crate::protocol::discovery::AssetDiscoveryProvider for FakeDiscoveryProvider {
+        fn discover_assets(
+            &self,
+            chain: ChainId,
+            _endpoint: &str,
+            _address: &str,
+        ) -> Result<Vec<crate::models::DiscoveredAsset>, WalletError> {
+            Ok(vec![crate::models::DiscoveredAsset {
+                chain,
+                kind: AssetKind::Erc20,
+                contract_address: "0x3333333333333333333333333333333333333333".to_string(),
+                symbol: "TOKEN".to_string(),
+                name: "TOKEN".to_string(),
+                decimals: 18,
+                balance: "0".to_string(),
+            }])
+        }
+    }
+
+    struct FakeBalanceClient {
+        seen_balance_decimals: Arc<Mutex<Option<u8>>>,
+    }
+
+    impl AssetBalanceClient for FakeBalanceClient {
+        fn supports_chain(&self, chain: ChainId) -> bool {
+            chain == ChainId::Bsc
+        }
+
+        fn fetch_native_balance(
+            &self,
+            _chain: ChainId,
+            _rpc_url: &str,
+            _address: &str,
+        ) -> Result<String, WalletError> {
+            Ok("0".to_string())
+        }
+
+        fn fetch_token_balance(
+            &self,
+            _chain: ChainId,
+            _rpc_url: &str,
+            _owner_address: &str,
+            _contract_address: &str,
+            decimals: u8,
+        ) -> Result<String, WalletError> {
+            *self.seen_balance_decimals.lock().unwrap() = Some(decimals);
+            Ok("12.5".to_string())
+        }
+
+        fn fetch_token_metadata(
+            &self,
+            chain: ChainId,
+            _rpc_url: &str,
+            contract_address: &str,
+        ) -> Result<TokenMetadata, WalletError> {
+            Ok(TokenMetadata {
+                chain,
+                kind: AssetKind::Erc20,
+                contract_address: contract_address.to_string(),
+                symbol: "USDC".to_string(),
+                name: "USD Coin".to_string(),
+                decimals: 6,
+            })
+        }
+    }
+
+    let fixture = engine_fixture();
+    let seen_balance_decimals = Arc::new(Mutex::new(None));
+    fixture
+        .engine
+        .auth()
+        .set_master_password("master-password")
+        .unwrap();
+    let wallet = fixture
+        .engine
+        .wallets()
+        .create_wallet("Primary", MNEMONIC, "master-password")
+        .unwrap();
+    fixture
+        .engine
+        .network()
+        .update_indexer_settings(ChainId::Bsc, "https://bscscan.com/tokentxns", None)
+        .unwrap();
+
+    fixture
+        .engine
+        .assets()
+        .discover_chain_assets_with(
+            wallet.id,
+            ChainId::Bsc,
+            &FakeDiscoveryProvider,
+            &FakeBalanceClient {
+                seen_balance_decimals: Arc::clone(&seen_balance_decimals),
+            },
+        )
+        .unwrap();
+    let assets = fixture.engine.assets().list_assets(wallet.id).unwrap();
+    let usdc = assets.iter().find(|asset| asset.symbol == "USDC").unwrap();
+
+    assert_eq!(*seen_balance_decimals.lock().unwrap(), Some(6));
+    assert_eq!(usdc.name, "USD Coin");
+    assert_eq!(usdc.decimals, 6);
+    assert_eq!(usdc.balance, "12.5");
+}

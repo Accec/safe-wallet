@@ -57,6 +57,61 @@ fn parses_etherscan_token_transfer_rows_without_duplicate_contracts() {
 }
 
 #[test]
+fn parses_bscscan_token_transfer_html_without_running_javascript() {
+    let html = r#"
+        <html>
+            <body>
+                <table>
+                    <tr>
+                        <td>
+                            <a class="d-flex" href="/token/0x0e63b9c287e32a05e6b9ab8ee8df88a2760225a9?a=0x12b17178502c5b24d01d9a2089d2625f165acb2c">
+                                <div title="Pieverse Token (PIEVERSE)">Pieverse Token</div>
+                            </a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <a class="d-flex" href="/token/0x0e63b9c287e32a05e6b9ab8ee8df88a2760225a9?a=0x12b17178502c5b24d01d9a2089d2625f165acb2c">
+                                <div title="Pieverse Token (PIEVERSE)">Pieverse Token</div>
+                            </a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <a class="d-flex" href="/token/0x10278d2d3b0c795faeed5d86acec8aa06f0e7777?a=0x12b17178502c5b24d01d9a2089d2625f165acb2c">
+                                <div title="BEP-20: Miracle (MIRACLE)">Miracle</div>
+                            </a>
+                        </td>
+                    </tr>
+                </table>
+                <script>
+                    const quickExportTokentxnsData = '[{"Amount":"6.249975","Token":"Pieverse Token(PIEVERSE)"},{"Amount":"2.49999","Token":"Pieverse Token(PIEVERSE)"},{"Amount":"5","Token":"BEP-20: Miracle(MIRACLE)"}]';
+                </script>
+            </body>
+        </html>
+    "#;
+
+    let discovered = parse_discovery_response(ChainId::Bsc, html).unwrap();
+
+    assert_eq!(discovered.len(), 2);
+    assert_eq!(discovered[0].kind, AssetKind::Erc20);
+    assert_eq!(
+        discovered[0].contract_address,
+        "0x0e63b9c287e32a05e6b9ab8ee8df88a2760225a9"
+    );
+    assert_eq!(discovered[0].symbol, "PIEVERSE");
+    assert_eq!(discovered[0].name, "Pieverse Token");
+    assert_eq!(discovered[0].decimals, 18);
+    assert_eq!(discovered[0].balance, "6.249975");
+    assert_eq!(
+        discovered[1].contract_address,
+        "0x10278d2d3b0c795faeed5d86acec8aa06f0e7777"
+    );
+    assert_eq!(discovered[1].symbol, "MIRACLE");
+    assert_eq!(discovered[1].name, "Miracle");
+}
+
+#[test]
 fn parses_tronscan_account_token_rows() {
     let token_id = "TEST_TRON_TOKEN_ID_DO_NOT_USE";
     let body = serde_json::json!({

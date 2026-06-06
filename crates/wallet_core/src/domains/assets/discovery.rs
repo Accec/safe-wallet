@@ -94,6 +94,16 @@ impl AssetsDomain {
         balance_client: &C,
     ) -> DiscoveredAsset {
         if balance_client.supports_chain(discovered.chain) {
+            if let Ok(metadata) = balance_client.fetch_token_metadata(
+                discovered.chain,
+                rpc_url,
+                &discovered.contract_address,
+            ) {
+                discovered.kind = metadata.kind;
+                discovered.symbol = metadata.symbol;
+                discovered.name = metadata.name;
+                discovered.decimals = metadata.decimals;
+            }
             if let Ok(balance) = balance_client.fetch_token_balance(
                 discovered.chain,
                 rpc_url,

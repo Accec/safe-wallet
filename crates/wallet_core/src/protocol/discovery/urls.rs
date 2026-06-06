@@ -23,6 +23,9 @@ pub(super) fn discovery_urls(
     if chain == ChainId::Tron || is_tronscan_api(&url) {
         return tron_discovery_urls(url, address);
     }
+    if chain == ChainId::Bsc && is_bscscan_web_url(&url) {
+        return Ok(vec![bscscan_token_transfer_url(url, address)]);
+    }
     Ok(evm_discovery_urls(url, chain, address))
 }
 
@@ -76,6 +79,15 @@ fn tron_discovery_urls(endpoint: Url, address: &str) -> Result<Vec<Url>, WalletE
     Ok(vec![url])
 }
 
+fn bscscan_token_transfer_url(mut url: Url, address: &str) -> Url {
+    if !url.path().trim_end_matches('/').ends_with("/tokentxns") {
+        url.set_path("/tokentxns");
+    }
+    set_query_pair(&mut url, "a", address);
+    ensure_query_pair(&mut url, "p", "1");
+    url
+}
+
 fn has_query_key(url: &Url, key: &str) -> bool {
     url.query_pairs().any(|(existing, _)| existing == key)
 }
@@ -86,9 +98,30 @@ fn ensure_query_pair(url: &mut Url, key: &str, value: &str) {
     }
 }
 
+fn set_query_pair(url: &mut Url, key: &str, value: &str) {
+    let pairs = url
+        .query_pairs()
+        .filter(|(existing, _)| existing != key)
+        .map(|(key, value)| (key.into_owned(), value.into_owned()))
+        .collect::<Vec<_>>();
+    url.set_query(None);
+    {
+        let mut query = url.query_pairs_mut();
+        for (key, value) in pairs {
+            query.append_pair(&key, &value);
+        }
+        query.append_pair(key, value);
+    }
+}
+
 fn is_tronscan_api(url: &Url) -> bool {
     url.host_str()
         .is_some_and(|host| host.contains("tronscanapi.com") || host.contains("tronscan.org"))
+}
+
+fn is_bscscan_web_url(url: &Url) -> bool {
+    url.host_str().is_some_and(|host| host == "bscscan.com")
+        && !url.path().trim_end_matches('/').ends_with("/api")
 }
 
 fn chain_slug(chain: ChainId) -> &'static str {
@@ -133,5 +166,23 @@ mod tests {
         assert!(url.contains("relatedAddress=TUxJcEDX8Srz3kYsv7oC4h3RWERhBk4QjJ"));
         assert!(url.contains("filterTokenValue=0"));
         assert!(!url.contains("/account/tokens"));
+    }
+
+    #[test]
+    fn bscscan_token_transfer_page_urls_keep_web_endpoint_shape() {
+        let urls = discovery_urls(
+            "https://bscscan.com/tokentxns?p=2",
+            ChainId::Bsc,
+            "0x12b17178502c5b24d01d9a2089d2625f165acb2c",
+        )
+        .unwrap();
+
+        assert_eq!(urls.len(), 1);
+        let url = urls[0].as_str();
+        assert!(url.contains("https://bscscan.com/tokentxns?"));
+        assert!(url.contains("a=0x12b17178502c5b24d01d9a2089d2625f165acb2c"));
+        assert!(url.contains("p=2"));
+        assert!(!url.contains("module=account"));
+        assert!(!url.contains("action=tokentx"));
     }
 }
