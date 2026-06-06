@@ -487,6 +487,17 @@ void main() {
     expect(parserBarrel, isNot(contains('MultisigProposalSummary(')));
   });
 
+  test('macos update installer handles protected app bundles', () {
+    final source = File(
+      'macos/Runner/MainFlutterWindow.swift',
+    ).readAsStringSync();
+
+    expect(source, contains('install_with_admin'));
+    expect(source, contains('with administrator privileges'));
+    expect(source, contains('quoted form of appPath'));
+    expect(source, contains('Move Safe Wallet to /Applications'));
+  });
+
   test('screen motion utilities are split by animation responsibility', () {
     final ui = Directory('lib/src/core/ui');
     final barrel = File('${ui.path}/screen_motion.dart').readAsStringSync();

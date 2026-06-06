@@ -254,16 +254,42 @@ fi
 APP_PARENT="$(/usr/bin/dirname "$APP_PATH")"
 APP_NAME="$(/usr/bin/basename "$APP_PATH")"
 BACKUP_PATH="$APP_PARENT/.$APP_NAME.updating-backup"
+ERROR_LOG="$EXTRACT_DIR/install-error.log"
 
-/bin/rm -rf "$BACKUP_PATH"
-/bin/mv "$APP_PATH" "$BACKUP_PATH" || fail "Could not prepare the existing app for replacement."
-if /bin/mv "$NEW_APP" "$APP_PATH"; then
+replace_without_admin() {
+  : > "$ERROR_LOG"
+  /bin/rm -rf "$BACKUP_PATH" 2>>"$ERROR_LOG" || return 1
+  /bin/mv "$APP_PATH" "$BACKUP_PATH" 2>>"$ERROR_LOG" || return 1
+  if /bin/mv "$NEW_APP" "$APP_PATH" 2>>"$ERROR_LOG"; then
+    /bin/rm -rf "$BACKUP_PATH" 2>>"$ERROR_LOG" || return 1
+    /bin/rm -f "$ZIP_PATH" 2>>"$ERROR_LOG" || return 1
+    return 0
+  fi
+  /bin/mv "$BACKUP_PATH" "$APP_PATH" >/dev/null 2>&1 || true
+  return 1
+}
+
+install_with_admin() {
+  ADMIN_SCRIPT="$EXTRACT_DIR/install-admin.applescript"
+  /bin/cat > "$ADMIN_SCRIPT" <<'APPLESCRIPT'
+on run argv
+  set appPath to item 1 of argv
+  set backupPath to item 2 of argv
+  set newAppPath to item 3 of argv
+  set zipPath to item 4 of argv
+  set commandText to "set -e; /bin/rm -rf " & quoted form of backupPath & " && /bin/mv " & quoted form of appPath & " " & quoted form of backupPath & " && if /bin/mv " & quoted form of newAppPath & " " & quoted form of appPath & "; then /bin/rm -rf " & quoted form of backupPath & " && /bin/rm -f " & quoted form of zipPath & "; else /bin/mv " & quoted form of backupPath & " " & quoted form of appPath & " >/dev/null 2>&1 || true; exit 1; fi"
+  do shell script commandText with administrator privileges
+end run
+APPLESCRIPT
+  /usr/bin/osascript "$ADMIN_SCRIPT" "$APP_PATH" "$BACKUP_PATH" "$NEW_APP" "$ZIP_PATH" 2>>"$ERROR_LOG"
+}
+
+if replace_without_admin || install_with_admin; then
   /bin/rm -rf "$BACKUP_PATH"
-  /bin/rm -f "$ZIP_PATH"
   /usr/bin/open "$APP_PATH"
 else
   /bin/mv "$BACKUP_PATH" "$APP_PATH" >/dev/null 2>&1 || true
-  fail "The app could not be replaced. Check permissions and try again."
+  fail "The app could not be replaced. Move Safe Wallet to /Applications and make sure you have permission to modify it, then try again."
 fi
 """
   try script.write(to: scriptURL, atomically: true, encoding: .utf8)
