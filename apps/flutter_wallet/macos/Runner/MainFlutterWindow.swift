@@ -165,7 +165,8 @@ private func decodeQrImage(_ url: URL) -> String? {
 private func installMacosUpdate(zipPath: String, result: @escaping FlutterResult) {
   let fileManager = FileManager.default
   let zipURL = URL(fileURLWithPath: zipPath)
-  let appURL = Bundle.main.bundleURL
+  let currentAppURL = Bundle.main.bundleURL
+  let installAppURL = macosInstallTargetURL(currentAppURL: currentAppURL)
 
   guard fileManager.fileExists(atPath: zipURL.path) else {
     result(FlutterError(
@@ -183,7 +184,7 @@ private func installMacosUpdate(zipPath: String, result: @escaping FlutterResult
     return
   }
 
-  guard appURL.pathExtension.lowercased() == "app" else {
+  guard currentAppURL.pathExtension.lowercased() == "app" else {
     result(FlutterError(
       code: "invalid_app_bundle",
       message: "Current app bundle could not be found.",
@@ -195,7 +196,7 @@ private func installMacosUpdate(zipPath: String, result: @escaping FlutterResult
     let scriptURL = try writeMacosUpdateScript()
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/bin/sh")
-    process.arguments = [scriptURL.path, zipURL.path, appURL.path, String(getpid())]
+    process.arguments = [scriptURL.path, zipURL.path, currentAppURL.path, installAppURL.path, String(getpid())]
     try process.run()
     result(nil)
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
@@ -207,6 +208,14 @@ private func installMacosUpdate(zipPath: String, result: @escaping FlutterResult
       message: "Could not prepare macOS update installer.",
       details: error.localizedDescription))
   }
+}
+
+private func macosInstallTargetURL(currentAppURL: URL) -> URL {
+  let currentURL = currentAppURL.standardizedFileURL
+  if currentURL.path.hasPrefix("/Applications/") {
+    return currentURL
+  }
+  return URL(fileURLWithPath: "/Applications/Safe Wallet.app")
 }
 
 private func writeMacosUpdateScript() throws -> URL {
@@ -225,10 +234,15 @@ set -u
 
 SCRIPT_PATH="$0"
 ZIP_PATH="$1"
-APP_PATH="$2"
-APP_PID="$3"
+CURRENT_APP_PATH="$2"
+APP_PATH="$3"
+APP_PID="$4"
+LAST_ERROR_LOG="${TMPDIR:-/tmp}/safe-wallet-update-error.log"
 
 fail() {
+  if [ -n "${ERROR_LOG:-}" ] && [ -f "$ERROR_LOG" ]; then
+    /bin/cp "$ERROR_LOG" "$LAST_ERROR_LOG" >/dev/null 2>&1 || true
+  fi
   /usr/bin/osascript -e "display alert \\"Safe Wallet update failed\\" message \\"$1\\"" >/dev/null 2>&1 || true
   /bin/rm -f "$SCRIPT_PATH"
   exit 1
@@ -256,16 +270,25 @@ APP_NAME="$(/usr/bin/basename "$APP_PATH")"
 BACKUP_PATH="$APP_PARENT/.$APP_NAME.updating-backup"
 ERROR_LOG="$EXTRACT_DIR/install-error.log"
 
+restore_backup() {
+  if [ -e "$BACKUP_PATH" ]; then
+    /bin/rm -rf "$APP_PATH" >/dev/null 2>&1 || true
+    /bin/mv "$BACKUP_PATH" "$APP_PATH" >/dev/null 2>&1 || true
+  fi
+}
+
 replace_without_admin() {
   : > "$ERROR_LOG"
   /bin/rm -rf "$BACKUP_PATH" 2>>"$ERROR_LOG" || return 1
-  /bin/mv "$APP_PATH" "$BACKUP_PATH" 2>>"$ERROR_LOG" || return 1
+  if [ -e "$APP_PATH" ]; then
+    /bin/mv "$APP_PATH" "$BACKUP_PATH" 2>>"$ERROR_LOG" || return 1
+  fi
   if /bin/mv "$NEW_APP" "$APP_PATH" 2>>"$ERROR_LOG"; then
     /bin/rm -rf "$BACKUP_PATH" 2>>"$ERROR_LOG" || return 1
-    /bin/rm -f "$ZIP_PATH" 2>>"$ERROR_LOG" || return 1
+    /bin/rm -f "$ZIP_PATH" 2>>"$ERROR_LOG" || true
     return 0
   fi
-  /bin/mv "$BACKUP_PATH" "$APP_PATH" >/dev/null 2>&1 || true
+  restore_backup
   return 1
 }
 
@@ -277,7 +300,7 @@ on run argv
   set backupPath to item 2 of argv
   set newAppPath to item 3 of argv
   set zipPath to item 4 of argv
-  set commandText to "set -e; /bin/rm -rf " & quoted form of backupPath & " && /bin/mv " & quoted form of appPath & " " & quoted form of backupPath & " && if /bin/mv " & quoted form of newAppPath & " " & quoted form of appPath & "; then /bin/rm -rf " & quoted form of backupPath & " && /bin/rm -f " & quoted form of zipPath & "; else /bin/mv " & quoted form of backupPath & " " & quoted form of appPath & " >/dev/null 2>&1 || true; exit 1; fi"
+  set commandText to "set -e; /bin/rm -rf " & quoted form of backupPath & "; if [ -e " & quoted form of appPath & " ]; then /bin/mv " & quoted form of appPath & " " & quoted form of backupPath & "; fi; if /bin/mv " & quoted form of newAppPath & " " & quoted form of appPath & "; then /bin/rm -rf " & quoted form of backupPath & " || true; /bin/rm -f " & quoted form of zipPath & " || true; else if [ -e " & quoted form of backupPath & " ]; then /bin/rm -rf " & quoted form of appPath & "; /bin/mv " & quoted form of backupPath & " " & quoted form of appPath & "; fi; exit 1; fi"
   do shell script commandText with administrator privileges
 end run
 APPLESCRIPT
@@ -288,8 +311,8 @@ if replace_without_admin || install_with_admin; then
   /bin/rm -rf "$BACKUP_PATH"
   /usr/bin/open "$APP_PATH"
 else
-  /bin/mv "$BACKUP_PATH" "$APP_PATH" >/dev/null 2>&1 || true
-  fail "The app could not be replaced. Move Safe Wallet to /Applications and make sure you have permission to modify it, then try again."
+  restore_backup
+  fail "The app could not be replaced. Move Safe Wallet to /Applications and make sure you have permission to modify it, then try again. Details were saved to $LAST_ERROR_LOG."
 fi
 """
   try script.write(to: scriptURL, atomically: true, encoding: .utf8)

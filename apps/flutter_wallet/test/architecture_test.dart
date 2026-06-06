@@ -492,6 +492,11 @@ void main() {
       'macos/Runner/MainFlutterWindow.swift',
     ).readAsStringSync();
 
+    expect(source, contains('macosInstallTargetURL'));
+    expect(source, contains('/Applications/Safe Wallet.app'));
+    expect(source, contains('currentAppURL.path, installAppURL.path'));
+    expect(source, contains(r'CURRENT_APP_PATH="$2"'));
+    expect(source, contains(r'APP_PATH="$3"'));
     expect(source, contains('install_with_admin'));
     expect(source, contains('with administrator privileges'));
     expect(source, contains('quoted form of appPath'));
