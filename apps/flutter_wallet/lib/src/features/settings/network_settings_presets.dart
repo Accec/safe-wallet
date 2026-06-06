@@ -26,7 +26,10 @@ const rpcUrlPresets = [
     name: 'Optimism PublicNode',
     url: 'https://optimism-rpc.publicnode.com',
   ),
-  NetworkUrlPreset(name: 'TronGrid', url: 'https://api.trongrid.io'),
+  NetworkUrlPreset(
+    name: 'Tron PublicNode',
+    url: 'https://tron-rpc.publicnode.com',
+  ),
 ];
 
 const explorerUrlPresets = [

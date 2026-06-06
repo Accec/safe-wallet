@@ -1,5 +1,8 @@
 use crate::models::{ChainId, ChainSettings};
 
+pub const TRON_PUBLICNODE_RPC_URL: &str = "https://tron-rpc.publicnode.com";
+pub const LEGACY_TRONGRID_RPC_URL: &str = "https://api.trongrid.io";
+
 pub fn default_chain_settings() -> Vec<ChainSettings> {
     vec![
         settings(
@@ -60,7 +63,7 @@ pub fn default_chain_settings() -> Vec<ChainSettings> {
             ChainId::Tron,
             "Tron",
             Some("728126428"),
-            "https://api.trongrid.io",
+            TRON_PUBLICNODE_RPC_URL,
             Some("https://tronscan.org"),
             "TRX",
             6,

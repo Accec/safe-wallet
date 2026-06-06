@@ -71,7 +71,7 @@ fn default_settings_include_supported_mainnets() {
         ChainId::Tron,
         "Tron",
         Some("728126428"),
-        "https://api.trongrid.io",
+        "https://tron-rpc.publicnode.com",
         Some("https://tronscan.org"),
         "TRX",
         6,
