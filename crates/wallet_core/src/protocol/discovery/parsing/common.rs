@@ -11,6 +11,7 @@ pub(super) fn discovery_rows(body: &Value) -> Result<&Vec<Value>, WalletError> {
         "result",
         "data",
         "tokens",
+        "token_transfers",
         "trc20token_balances",
         "withPriceTokens",
         "trc20_tokens",

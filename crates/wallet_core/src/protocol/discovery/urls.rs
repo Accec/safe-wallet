@@ -54,16 +54,25 @@ fn evm_discovery_urls(endpoint: Url, chain: ChainId, address: &str) -> Vec<Url> 
 fn tron_discovery_urls(endpoint: Url, address: &str) -> Result<Vec<Url>, WalletError> {
     let mut url = endpoint;
     let path = url.path().trim_end_matches('/').to_string();
-    if !path.ends_with("/account/tokens") {
-        url.set_path(&format!("{path}/account/tokens"));
+    if !path.ends_with("/filter/trc20/transfers") {
+        let base_path = path
+            .strip_suffix("/account/tokens")
+            .or_else(|| path.strip_suffix("/token_trc20/transfers"))
+            .or_else(|| path.strip_suffix("/transfer"))
+            .unwrap_or(path.as_str());
+        let base_path = if base_path.is_empty() {
+            "/api"
+        } else {
+            base_path
+        };
+        url.set_path(&format!("{base_path}/filter/trc20/transfers"));
     }
-    ensure_query_pair(&mut url, "address", address);
+    ensure_query_pair(&mut url, "relatedAddress", address);
     ensure_query_pair(&mut url, "start", "0");
-    ensure_query_pair(&mut url, "limit", "200");
-    ensure_query_pair(&mut url, "hidden", "1");
-    ensure_query_pair(&mut url, "show", "1");
-    ensure_query_pair(&mut url, "sortType", "0");
-    ensure_query_pair(&mut url, "sortBy", "0");
+    ensure_query_pair(&mut url, "limit", "100");
+    ensure_query_pair(&mut url, "sort", "-timestamp");
+    ensure_query_pair(&mut url, "count", "true");
+    ensure_query_pair(&mut url, "filterTokenValue", "0");
     Ok(vec![url])
 }
 
@@ -102,5 +111,27 @@ fn etherscan_chain_id(chain: ChainId) -> Option<&'static str> {
         ChainId::Arbitrum => Some("42161"),
         ChainId::Optimism => Some("10"),
         ChainId::Btc | ChainId::Tron => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tronscan_discovery_uses_tor_accessible_trc20_transfer_endpoint() {
+        let urls = discovery_urls(
+            "https://apilist.tronscan.org/api",
+            ChainId::Tron,
+            "TUxJcEDX8Srz3kYsv7oC4h3RWERhBk4QjJ",
+        )
+        .unwrap();
+
+        assert_eq!(urls.len(), 1);
+        let url = urls[0].as_str();
+        assert!(url.contains("/api/filter/trc20/transfers?"));
+        assert!(url.contains("relatedAddress=TUxJcEDX8Srz3kYsv7oC4h3RWERhBk4QjJ"));
+        assert!(url.contains("filterTokenValue=0"));
+        assert!(!url.contains("/account/tokens"));
     }
 }

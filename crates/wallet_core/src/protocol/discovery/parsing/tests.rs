@@ -77,3 +77,35 @@ fn parses_tronscan_account_token_rows() {
     assert_eq!(discovered[0].symbol, "USDT");
     assert_eq!(discovered[0].balance, "12.5");
 }
+
+#[test]
+fn parses_tronscan_trc20_transfer_rows_for_asset_discovery() {
+    let body = serde_json::json!({
+        "token_transfers": [{
+            "transaction_id": "cc12dd6d9d06687ba29d810509cd8221305aaac9f98844f64102a6c114ae9b6d",
+            "contract_address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+            "quant": "175054115",
+            "tokenType2": "trc20",
+            "tokenInfo": {
+                "tokenId": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+                "tokenAbbr": "USDT",
+                "tokenName": "Tether USD",
+                "tokenDecimal": 6,
+                "tokenType": "trc20"
+            }
+        }]
+    });
+
+    let discovered = parse_discovery_body(ChainId::Tron, &body).unwrap();
+
+    assert_eq!(discovered.len(), 1);
+    assert_eq!(discovered[0].kind, AssetKind::Trc20);
+    assert_eq!(
+        discovered[0].contract_address,
+        "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+    );
+    assert_eq!(discovered[0].symbol, "USDT");
+    assert_eq!(discovered[0].name, "Tether USD");
+    assert_eq!(discovered[0].decimals, 6);
+    assert_eq!(discovered[0].balance, "175.054115");
+}

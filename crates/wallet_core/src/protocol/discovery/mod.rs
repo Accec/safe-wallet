@@ -68,7 +68,7 @@ pub fn default_discovery_endpoint(chain: ChainId) -> Option<&'static str> {
         | ChainId::Polygon
         | ChainId::Arbitrum
         | ChainId::Optimism => Some("https://api.etherscan.io/v2/api"),
-        ChainId::Tron => Some("https://apilist.tronscanapi.com/api"),
+        ChainId::Tron => Some("https://apilist.tronscan.org/api"),
         ChainId::Btc => None,
     }
 }
