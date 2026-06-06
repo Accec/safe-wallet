@@ -6,7 +6,7 @@ pub(super) fn parse_token_transfer_html(
     chain: ChainId,
     body: &str,
 ) -> Option<Vec<DiscoveredAsset>> {
-    if chain != ChainId::Bsc || !body.contains("/token/") {
+    if !is_evm_chain(chain) || !body.contains("/token/") {
         return None;
     }
     let contracts = token_contracts(body);
@@ -42,6 +42,13 @@ pub(super) fn parse_token_transfer_html(
     }
 
     Some(deduplicate_contracts(discovered))
+}
+
+fn is_evm_chain(chain: ChainId) -> bool {
+    matches!(
+        chain,
+        ChainId::Ethereum | ChainId::Bsc | ChainId::Polygon | ChainId::Arbitrum | ChainId::Optimism
+    )
 }
 
 fn token_contracts(body: &str) -> Vec<String> {

@@ -30,7 +30,7 @@ class NetworkPrivacyForm extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              'Routes Safe Wallet RPC and indexer requests through a proxy. This can reduce IP exposure to network services, but it does not guarantee anonymity.',
+              'Routes Safe Wallet RPC and scan requests through a proxy. This can reduce IP exposure to network services, but it does not guarantee anonymity.',
             ),
             const SizedBox(height: 12),
             SwitchListTile(

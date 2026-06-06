@@ -23,8 +23,8 @@ pub(super) fn discovery_urls(
     if chain == ChainId::Tron || is_tronscan_api(&url) {
         return tron_discovery_urls(url, address);
     }
-    if chain == ChainId::Bsc && is_bscscan_web_url(&url) {
-        return Ok(vec![bscscan_token_transfer_url(url, address)]);
+    if is_evm_scan_web_url(chain, &url) {
+        return Ok(vec![token_transfer_page_url(url, address)]);
     }
     Ok(evm_discovery_urls(url, chain, address))
 }
@@ -79,7 +79,7 @@ fn tron_discovery_urls(endpoint: Url, address: &str) -> Result<Vec<Url>, WalletE
     Ok(vec![url])
 }
 
-fn bscscan_token_transfer_url(mut url: Url, address: &str) -> Url {
+fn token_transfer_page_url(mut url: Url, address: &str) -> Url {
     if !url.path().trim_end_matches('/').ends_with("/tokentxns") {
         url.set_path("/tokentxns");
     }
@@ -119,9 +119,19 @@ fn is_tronscan_api(url: &Url) -> bool {
         .is_some_and(|host| host.contains("tronscanapi.com") || host.contains("tronscan.org"))
 }
 
-fn is_bscscan_web_url(url: &Url) -> bool {
-    url.host_str().is_some_and(|host| host == "bscscan.com")
-        && !url.path().trim_end_matches('/').ends_with("/api")
+fn is_evm_scan_web_url(chain: ChainId, url: &Url) -> bool {
+    let Some(host) = url.host_str() else {
+        return false;
+    };
+    let expected_host = match chain {
+        ChainId::Ethereum => "etherscan.io",
+        ChainId::Bsc => "bscscan.com",
+        ChainId::Polygon => "polygonscan.com",
+        ChainId::Arbitrum => "arbiscan.io",
+        ChainId::Optimism => "optimistic.etherscan.io",
+        ChainId::Btc | ChainId::Tron => return false,
+    };
+    host == expected_host && !url.path().trim_end_matches('/').ends_with("/api")
 }
 
 fn chain_slug(chain: ChainId) -> &'static str {
@@ -184,5 +194,27 @@ mod tests {
         assert!(url.contains("p=2"));
         assert!(!url.contains("module=account"));
         assert!(!url.contains("action=tokentx"));
+    }
+
+    #[test]
+    fn etherscan_family_web_urls_use_token_transfer_pages_without_api_actions() {
+        let cases = [
+            (ChainId::Ethereum, "https://etherscan.io"),
+            (ChainId::Polygon, "https://polygonscan.com"),
+            (ChainId::Arbitrum, "https://arbiscan.io"),
+            (ChainId::Optimism, "https://optimistic.etherscan.io"),
+        ];
+
+        for (chain, endpoint) in cases {
+            let urls = discovery_urls(endpoint, chain, "0xabc").unwrap();
+
+            assert_eq!(urls.len(), 1);
+            let url = urls[0].as_str();
+            assert!(url.contains("/tokentxns?"), "{url}");
+            assert!(url.contains("a=0xabc"), "{url}");
+            assert!(!url.contains("module=account"), "{url}");
+            assert!(!url.contains("action=tokentx"), "{url}");
+            assert!(!url.contains("chainid="), "{url}");
+        }
     }
 }

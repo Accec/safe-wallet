@@ -2,9 +2,9 @@ use crate::error::WalletError;
 use crate::models::{ChainId, DiscoveredAsset};
 use serde_json::Value;
 
-mod bscscan;
 mod common;
 mod etherscan;
+mod scan_pages;
 mod tronscan;
 
 pub(super) fn parse_discovery_response(
@@ -14,7 +14,7 @@ pub(super) fn parse_discovery_response(
     if let Ok(body) = serde_json::from_str::<Value>(body) {
         return parse_discovery_body(chain, &body);
     }
-    bscscan::parse_token_transfer_html(chain, body).ok_or(WalletError::NetworkUnavailable)
+    scan_pages::parse_token_transfer_html(chain, body).ok_or(WalletError::NetworkUnavailable)
 }
 
 pub(super) fn parse_discovery_body(

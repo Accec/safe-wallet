@@ -190,6 +190,7 @@ fn asset_discovery_parsing_is_split_by_provider_shape() {
         "mod.rs",
         "common.rs",
         "etherscan.rs",
+        "scan_pages.rs",
         "tronscan.rs",
         "tests.rs",
     ] {

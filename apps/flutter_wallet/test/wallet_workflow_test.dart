@@ -90,15 +90,15 @@ void main() {
         'https://example.invalid/explorer',
       );
       await tester.enterText(
-        _textField('Indexer API URL'),
-        'https://example.invalid/indexer',
+        _textField('Scan URL'),
+        'https://example.invalid/scan',
       );
       await tester.tap(find.widgetWithText(FilledButton, 'Save network'));
       await tester.pumpAndSettle();
 
       expect(api.updatedChain, 'bsc');
       expect(api.updatedRpcUrl, 'https://example.invalid/rpc');
-      expect(api.updatedIndexerEndpoint, 'https://example.invalid/indexer');
+      expect(api.updatedIndexerEndpoint, 'https://example.invalid/scan');
     },
   );
 

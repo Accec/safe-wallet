@@ -19,7 +19,7 @@ String? networkSettingsValidationError(NetworkSettingsDraft draft) {
   }
   final indexerEndpoint = draft.indexerEndpoint;
   if (indexerEndpoint != null && !_isHttpUrl(indexerEndpoint)) {
-    return 'Indexer API URL must be http or https';
+    return 'Scan URL must be http or https';
   }
   return null;
 }

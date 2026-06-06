@@ -69,12 +69,45 @@ impl AssetDiscoveryProvider for HttpAssetDiscoveryProvider {
 
 pub fn default_discovery_endpoint(chain: ChainId) -> Option<&'static str> {
     match chain {
-        ChainId::Ethereum
-        | ChainId::Bsc
-        | ChainId::Polygon
-        | ChainId::Arbitrum
-        | ChainId::Optimism => Some("https://api.etherscan.io/v2/api"),
+        ChainId::Ethereum => Some("https://etherscan.io"),
+        ChainId::Bsc => Some("https://bscscan.com"),
+        ChainId::Polygon => Some("https://polygonscan.com"),
+        ChainId::Arbitrum => Some("https://arbiscan.io"),
+        ChainId::Optimism => Some("https://optimistic.etherscan.io"),
         ChainId::Tron => Some("https://apilist.tronscan.org/api"),
         ChainId::Btc => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_discovery_endpoints_use_scan_pages_not_api_indexers() {
+        assert_eq!(
+            default_discovery_endpoint(ChainId::Ethereum),
+            Some("https://etherscan.io")
+        );
+        assert_eq!(
+            default_discovery_endpoint(ChainId::Bsc),
+            Some("https://bscscan.com")
+        );
+        assert_eq!(
+            default_discovery_endpoint(ChainId::Polygon),
+            Some("https://polygonscan.com")
+        );
+        assert_eq!(
+            default_discovery_endpoint(ChainId::Arbitrum),
+            Some("https://arbiscan.io")
+        );
+        assert_eq!(
+            default_discovery_endpoint(ChainId::Optimism),
+            Some("https://optimistic.etherscan.io")
+        );
+        assert_eq!(
+            default_discovery_endpoint(ChainId::Tron),
+            Some("https://apilist.tronscan.org/api")
+        );
     }
 }

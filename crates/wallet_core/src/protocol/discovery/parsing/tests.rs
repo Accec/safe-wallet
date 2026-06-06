@@ -112,6 +112,34 @@ fn parses_bscscan_token_transfer_html_without_running_javascript() {
 }
 
 #[test]
+fn parses_etherscan_family_token_transfer_html_without_running_javascript() {
+    let html = r#"
+        <html>
+            <body>
+                <a href="/token/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48?a=0xabc">
+                    <span title="USD Coin (USDC)">USD Coin</span>
+                </a>
+                <script>
+                    const quickExportTokentxnsData = '[{"Amount":"12.34","Token":"USD Coin(USDC)"}]';
+                </script>
+            </body>
+        </html>
+    "#;
+
+    let discovered = parse_discovery_response(ChainId::Polygon, html).unwrap();
+
+    assert_eq!(discovered.len(), 1);
+    assert_eq!(discovered[0].chain, ChainId::Polygon);
+    assert_eq!(
+        discovered[0].contract_address,
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+    );
+    assert_eq!(discovered[0].symbol, "USDC");
+    assert_eq!(discovered[0].name, "USD Coin");
+    assert_eq!(discovered[0].balance, "12.34");
+}
+
+#[test]
 fn parses_tronscan_account_token_rows() {
     let token_id = "TEST_TRON_TOKEN_ID_DO_NOT_USE";
     let body = serde_json::json!({

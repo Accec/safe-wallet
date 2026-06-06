@@ -69,8 +69,8 @@ class NetworkSettingsForm extends StatelessWidget {
             NetworkSettingsUrlInput(
               controller: controllers.indexer,
               enabled: !busy,
-              labelText: 'Indexer API URL',
-              presets: indexerUrlPresets,
+              labelText: 'Scan URL',
+              presets: scanUrlPresets,
             ),
             if (errorText != null) ...[
               const SizedBox(height: 12),
