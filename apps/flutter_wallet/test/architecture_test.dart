@@ -503,6 +503,21 @@ void main() {
     expect(source, contains('Move Safe Wallet to /Applications'));
   });
 
+  test('macos release app is not sandboxed so updater can replace bundle', () {
+    final releaseEntitlements = File(
+      'macos/Runner/Release.entitlements',
+    ).readAsStringSync();
+    final debugEntitlements = File(
+      'macos/Runner/DebugProfile.entitlements',
+    ).readAsStringSync();
+
+    expect(debugEntitlements, contains('com.apple.security.app-sandbox'));
+    expect(
+      releaseEntitlements,
+      isNot(contains('com.apple.security.app-sandbox')),
+    );
+  });
+
   test('screen motion utilities are split by animation responsibility', () {
     final ui = Directory('lib/src/core/ui');
     final barrel = File('${ui.path}/screen_motion.dart').readAsStringSync();
