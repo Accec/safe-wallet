@@ -42,6 +42,10 @@ pub(super) fn row_status(row: &Value) -> ActivityStatus {
         || string_field(row, "contractRet")
             .as_deref()
             .is_some_and(|ret| ret != "SUCCESS")
+        || string_field(row, "result")
+            .as_deref()
+            .is_some_and(|ret| ret != "SUCCESS")
+        || row.get("revert").and_then(Value::as_bool) == Some(true)
         || row.get("confirmed").and_then(Value::as_bool) == Some(false)
     {
         ActivityStatus::Failed

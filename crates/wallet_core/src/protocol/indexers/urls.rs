@@ -23,6 +23,18 @@ pub(super) fn activity_urls(
     if chain == ChainId::Tron && is_tronscan_api(&url) {
         return tronscan_activity_urls(url, address);
     }
+    if is_evm_scan_web_url(chain, &url) {
+        if url.path().trim_end_matches('/').ends_with("/tokentxns") {
+            return Ok(vec![token_transfer_page_url(url, address)]);
+        }
+        if url.path().trim_end_matches('/').ends_with("/txs") {
+            return Ok(vec![transaction_page_url(url, address)]);
+        }
+        return Ok(vec![
+            transaction_page_url(url.clone(), address),
+            token_transfer_page_url(url, address),
+        ]);
+    }
     if is_account_api(&url) && !has_query_key(&url, "action") {
         return ["txlist", "tokentx"]
             .into_iter()
@@ -68,37 +80,44 @@ fn is_tronscan_api(url: &Url) -> bool {
 }
 
 fn tronscan_activity_urls(endpoint: Url, address: &str) -> Result<Vec<Url>, WalletError> {
-    let path = endpoint.path().trim_end_matches('/').to_string();
-    if path.ends_with("/transfer") {
-        let mut url = endpoint;
-        ensure_query_pair(&mut url, "address", address);
-        ensure_query_pair(&mut url, "sort", "-timestamp");
-        ensure_query_pair(&mut url, "start", "0");
-        ensure_query_pair(&mut url, "limit", "100");
-        return Ok(vec![url]);
+    let mut url = endpoint;
+    let path = url.path().trim_end_matches('/').to_string();
+    if !path.ends_with("/transaction") {
+        let base_path = path
+            .strip_suffix("/transfer")
+            .or_else(|| path.strip_suffix("/token_trc20/transfers"))
+            .unwrap_or(path.as_str());
+        let base_path = if base_path.is_empty() {
+            "/api"
+        } else {
+            base_path
+        };
+        url.set_path(&format!("{base_path}/transaction"));
     }
-    if path.ends_with("/token_trc20/transfers") {
-        let mut url = endpoint;
-        ensure_query_pair(&mut url, "relatedAddress", address);
-        ensure_query_pair(&mut url, "sort", "-timestamp");
-        ensure_query_pair(&mut url, "start", "0");
-        ensure_query_pair(&mut url, "limit", "100");
-        return Ok(vec![url]);
-    }
-    let mut native = endpoint.clone();
-    native.set_path(&format!("{path}/transfer"));
-    ensure_query_pair(&mut native, "address", address);
-    ensure_query_pair(&mut native, "sort", "-timestamp");
-    ensure_query_pair(&mut native, "start", "0");
-    ensure_query_pair(&mut native, "limit", "100");
+    ensure_query_pair(&mut url, "address", address);
+    ensure_query_pair(&mut url, "sort", "-timestamp");
+    ensure_query_pair(&mut url, "count", "true");
+    ensure_query_pair(&mut url, "start", "0");
+    ensure_query_pair(&mut url, "limit", "20");
+    Ok(vec![url])
+}
 
-    let mut trc20 = endpoint;
-    trc20.set_path(&format!("{path}/token_trc20/transfers"));
-    ensure_query_pair(&mut trc20, "relatedAddress", address);
-    ensure_query_pair(&mut trc20, "sort", "-timestamp");
-    ensure_query_pair(&mut trc20, "start", "0");
-    ensure_query_pair(&mut trc20, "limit", "100");
-    Ok(vec![native, trc20])
+fn token_transfer_page_url(mut url: Url, address: &str) -> Url {
+    if !url.path().trim_end_matches('/').ends_with("/tokentxns") {
+        url.set_path("/tokentxns");
+    }
+    set_query_pair(&mut url, "a", address);
+    ensure_query_pair(&mut url, "p", "1");
+    url
+}
+
+fn transaction_page_url(mut url: Url, address: &str) -> Url {
+    if !url.path().trim_end_matches('/').ends_with("/txs") {
+        url.set_path("/txs");
+    }
+    set_query_pair(&mut url, "a", address);
+    ensure_query_pair(&mut url, "p", "1");
+    url
 }
 
 fn has_query_key(url: &Url, key: &str) -> bool {
@@ -109,6 +128,37 @@ fn ensure_query_pair(url: &mut Url, key: &str, value: &str) {
     if !has_query_key(url, key) {
         url.query_pairs_mut().append_pair(key, value);
     }
+}
+
+fn set_query_pair(url: &mut Url, key: &str, value: &str) {
+    let pairs = url
+        .query_pairs()
+        .filter(|(existing, _)| existing != key)
+        .map(|(key, value)| (key.into_owned(), value.into_owned()))
+        .collect::<Vec<_>>();
+    url.set_query(None);
+    {
+        let mut query = url.query_pairs_mut();
+        for (key, value) in pairs {
+            query.append_pair(&key, &value);
+        }
+        query.append_pair(key, value);
+    }
+}
+
+fn is_evm_scan_web_url(chain: ChainId, url: &Url) -> bool {
+    let Some(host) = url.host_str() else {
+        return false;
+    };
+    let expected_host = match chain {
+        ChainId::Ethereum => "etherscan.io",
+        ChainId::Bsc => "bscscan.com",
+        ChainId::Polygon => "polygonscan.com",
+        ChainId::Arbitrum => "arbiscan.io",
+        ChainId::Optimism => "optimistic.etherscan.io",
+        ChainId::Btc | ChainId::Tron => return false,
+    };
+    host == expected_host && !url.path().trim_end_matches('/').ends_with("/api")
 }
 
 fn chain_slug(chain: ChainId) -> &'static str {
@@ -158,20 +208,58 @@ mod tests {
     }
 
     #[test]
-    fn tronscan_urls_include_native_and_trc20_transfer_endpoints() {
+    fn evm_scan_web_urls_use_transaction_and_token_transfer_pages_for_activity() {
         let urls = activity_urls(
-            "https://apilist.tronscanapi.com/api",
-            ChainId::Tron,
-            "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7",
+            "https://bscscan.com",
+            ChainId::Bsc,
+            "0x12b17178502c5b24d01d9a2089d2625f165acb2c",
         )
         .unwrap();
-        let native = urls[0].as_str();
-        let trc20 = urls[1].as_str();
 
         assert_eq!(urls.len(), 2);
-        assert!(native.contains("/api/transfer?"));
-        assert!(native.contains("address=TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7"));
-        assert!(trc20.contains("/api/token_trc20/transfers?"));
-        assert!(trc20.contains("relatedAddress=TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7"));
+        let native = urls[0].as_str();
+        let token = urls[1].as_str();
+        assert!(native.contains("https://bscscan.com/txs?"), "{native}");
+        assert!(native.contains("a=0x12b17178502c5b24d01d9a2089d2625f165acb2c"));
+        assert!(native.contains("p=1"));
+        assert!(token.contains("https://bscscan.com/tokentxns?"), "{token}");
+        assert!(token.contains("a=0x12b17178502c5b24d01d9a2089d2625f165acb2c"));
+        assert!(token.contains("p=1"));
+        assert!(!native.contains("module=account"));
+        assert!(!token.contains("action=tokentx"));
+    }
+
+    #[test]
+    fn explicit_evm_token_transfer_page_stays_single_activity_url() {
+        let urls = activity_urls(
+            "https://bscscan.com/tokentxns?p=2",
+            ChainId::Bsc,
+            "0x12b17178502c5b24d01d9a2089d2625f165acb2c",
+        )
+        .unwrap();
+
+        assert_eq!(urls.len(), 1);
+        let url = urls[0].as_str();
+        assert!(url.contains("https://bscscan.com/tokentxns?"), "{url}");
+        assert!(url.contains("a=0x12b17178502c5b24d01d9a2089d2625f165acb2c"));
+        assert!(url.contains("p=2"));
+    }
+
+    #[test]
+    fn tronscan_activity_uses_transaction_api_shape() {
+        let urls = activity_urls(
+            "https://apilist.tronscan.org/api",
+            ChainId::Tron,
+            "TUxJcEDX8Srz3kYsv7oC4h3RWERhBk4QjJ",
+        )
+        .unwrap();
+
+        assert_eq!(urls.len(), 1);
+        let url = urls[0].as_str();
+        assert!(url.contains("/api/transaction?"), "{url}");
+        assert!(url.contains("address=TUxJcEDX8Srz3kYsv7oC4h3RWERhBk4QjJ"));
+        assert!(url.contains("sort=-timestamp"));
+        assert!(url.contains("count=true"));
+        assert!(url.contains("limit=20"));
     }
 }

@@ -1,11 +1,13 @@
 use crate::error::WalletError;
 use crate::models::{ActivityRecord, ChainId};
 use reqwest::blocking::Client;
-use serde_json::Value;
+use reqwest::header::USER_AGENT;
 use std::time::Duration;
 
 mod parsing;
 mod urls;
+
+const ACTIVITY_USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) SafeWallet/0.1";
 
 pub trait ActivityIndexer {
     fn fetch_activity(
@@ -40,14 +42,27 @@ impl ActivityIndexer for HttpActivityIndexer {
             let body = self
                 .client
                 .get(url)
+                .header(USER_AGENT, ACTIVITY_USER_AGENT)
                 .send()
                 .and_then(|response| response.error_for_status())
                 .map_err(|_| WalletError::NetworkUnavailable)?
-                .json::<Value>()
+                .text()
                 .map_err(|_| WalletError::NetworkUnavailable)?;
-            records.extend(parsing::parse_activity_body(chain, &body)?);
+            records.extend(parsing::parse_activity_response(chain, &body)?);
         }
         Ok(records)
+    }
+}
+
+pub fn default_activity_endpoint(chain: ChainId) -> Option<&'static str> {
+    match chain {
+        ChainId::Ethereum => Some("https://etherscan.io"),
+        ChainId::Bsc => Some("https://bscscan.com"),
+        ChainId::Polygon => Some("https://polygonscan.com"),
+        ChainId::Arbitrum => Some("https://arbiscan.io"),
+        ChainId::Optimism => Some("https://optimistic.etherscan.io"),
+        ChainId::Tron => Some("https://apilist.tronscan.org/api"),
+        ChainId::Btc => None,
     }
 }
 
@@ -109,5 +124,22 @@ mod tests {
         });
 
         assert!(indexer.is_ok());
+    }
+
+    #[test]
+    fn default_activity_endpoints_use_scan_pages_and_tronscan_transaction_api() {
+        assert_eq!(
+            default_activity_endpoint(ChainId::Ethereum),
+            Some("https://etherscan.io")
+        );
+        assert_eq!(
+            default_activity_endpoint(ChainId::Bsc),
+            Some("https://bscscan.com")
+        );
+        assert_eq!(
+            default_activity_endpoint(ChainId::Tron),
+            Some("https://apilist.tronscan.org/api")
+        );
+        assert_eq!(default_activity_endpoint(ChainId::Btc), None);
     }
 }

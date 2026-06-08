@@ -86,3 +86,62 @@ fn sync_activity_persists_indexed_transfer_history_without_duplicates() {
     assert_eq!(calls[0].1, "https://example.invalid/indexer");
     assert!(calls[0].2.starts_with("0x"));
 }
+
+#[test]
+fn sync_activity_uses_default_scan_endpoint_without_custom_indexer_settings() {
+    use crate::models::{ActivityKind, ActivityStatus};
+    use crate::protocol::indexers::ActivityIndexer;
+    use std::cell::RefCell;
+
+    struct FakeActivityIndexer {
+        calls: RefCell<Vec<(ChainId, String, String)>>,
+    }
+
+    impl ActivityIndexer for FakeActivityIndexer {
+        fn fetch_activity(
+            &self,
+            chain: ChainId,
+            endpoint: &str,
+            address: &str,
+        ) -> Result<Vec<crate::models::ActivityRecord>, WalletError> {
+            self.calls
+                .borrow_mut()
+                .push((chain, endpoint.to_string(), address.to_string()));
+            Ok(vec![crate::models::ActivityRecord {
+                chain,
+                tx_hash: "0xscanpage".to_string(),
+                kind: ActivityKind::TokenTransfer,
+                status: ActivityStatus::Confirmed,
+                summary: "Received 1 TOKEN".to_string(),
+            }])
+        }
+    }
+
+    let fixture = engine_fixture();
+    fixture
+        .engine
+        .auth()
+        .set_master_password("master-password")
+        .unwrap();
+    let wallet = fixture
+        .engine
+        .wallets()
+        .create_wallet("Primary", MNEMONIC, "master-password")
+        .unwrap();
+    let indexer = FakeActivityIndexer {
+        calls: RefCell::new(Vec::new()),
+    };
+
+    let synced = fixture
+        .engine
+        .activity()
+        .sync_activity_with(wallet.id, Some(ChainId::Bsc), &indexer)
+        .unwrap();
+    let calls = indexer.calls.borrow();
+
+    assert_eq!(synced, 1);
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].0, ChainId::Bsc);
+    assert_eq!(calls[0].1, "https://bscscan.com");
+    assert!(calls[0].2.starts_with("0x"));
+}

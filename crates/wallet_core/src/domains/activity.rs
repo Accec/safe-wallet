@@ -1,6 +1,6 @@
 use crate::error::WalletError;
 use crate::models::{ActivityRecord, ChainId};
-use crate::protocol::indexers::{ActivityIndexer, HttpActivityIndexer};
+use crate::protocol::indexers::{default_activity_endpoint, ActivityIndexer, HttpActivityIndexer};
 use crate::storage::WalletDatabase;
 use uuid::Uuid;
 
@@ -39,7 +39,12 @@ impl ActivityDomain {
             if selected_chain.is_some_and(|chain| account.chain != chain) {
                 continue;
             }
-            let Some(endpoint) = self.database.network().indexer_endpoint(account.chain)? else {
+            let Some(endpoint) = self
+                .database
+                .network()
+                .indexer_endpoint(account.chain)?
+                .or_else(|| default_activity_endpoint(account.chain).map(str::to_string))
+            else {
                 continue;
             };
             for record in indexer.fetch_activity(account.chain, &endpoint, &account.address)? {

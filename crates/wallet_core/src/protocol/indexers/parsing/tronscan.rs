@@ -14,15 +14,32 @@ pub(super) fn parse_activity_row(chain: ChainId, row: &Value) -> Option<Activity
     } else {
         ActivityKind::NativeTransfer
     };
-    let amount = string_field(row, "amount")
+    let raw_amount = string_field(row, "amount")
         .or_else(|| string_field(row, "quant"))
         .or_else(|| string_field(row, "value"))
+        .or_else(|| {
+            row.get("contractData")
+                .and_then(|contract_data| string_field(contract_data, "amount"))
+        });
+    if raw_amount.as_deref().map_or(true, is_zero_amount) {
+        return None;
+    }
+    let amount = raw_amount
         .map(|value| format_amount(&value, token_decimals(row, kind)))
         .unwrap_or_else(|| "0".to_string());
-    let symbol = token_symbol.unwrap_or_else(|| native_symbol(chain).to_string());
+    let symbol = if kind == ActivityKind::NativeTransfer {
+        native_symbol(chain).to_string()
+    } else {
+        token_symbol.unwrap_or_else(|| native_symbol(chain).to_string())
+    };
     let to = string_field(row, "transferToAddress")
         .or_else(|| string_field(row, "to_address"))
+        .or_else(|| string_field(row, "toAddress"))
         .or_else(|| string_field(row, "to"))
+        .or_else(|| {
+            row.get("contractData")
+                .and_then(|contract_data| string_field(contract_data, "to_address"))
+        })
         .unwrap_or_else(|| "unknown".to_string());
 
     Some(ActivityRecord {
@@ -32,6 +49,10 @@ pub(super) fn parse_activity_row(chain: ChainId, row: &Value) -> Option<Activity
         status: row_status(row),
         summary: format!("Transfer {amount} {symbol} to {to}"),
     })
+}
+
+fn is_zero_amount(value: &str) -> bool {
+    value.trim().trim_start_matches('0').is_empty()
 }
 
 fn is_native_symbol(chain: ChainId, symbol: Option<&str>) -> bool {

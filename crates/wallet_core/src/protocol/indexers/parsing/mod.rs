@@ -4,7 +4,18 @@ use serde_json::Value;
 
 mod common;
 mod etherscan;
+mod scan_pages;
 mod tronscan;
+
+pub(super) fn parse_activity_response(
+    chain: ChainId,
+    body: &str,
+) -> Result<Vec<ActivityRecord>, WalletError> {
+    if let Ok(body) = serde_json::from_str::<Value>(body) {
+        return parse_activity_body(chain, &body);
+    }
+    scan_pages::parse_token_transfer_html(chain, body).ok_or(WalletError::NetworkUnavailable)
+}
 
 pub(super) fn parse_activity_body(
     chain: ChainId,
