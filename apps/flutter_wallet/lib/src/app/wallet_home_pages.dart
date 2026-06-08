@@ -85,7 +85,6 @@ List<Widget> buildWalletHomePages({
       assets: selectedChain == null
           ? assets
           : assets.where((asset) => asset.chain == selectedChain).toList(),
-      masterPassword: session.sessionPassword,
       onSent: workspaceController.loadWallets,
     ),
     const MultisigScreen(),

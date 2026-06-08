@@ -23,9 +23,12 @@ mixin TransferScreenSubmissionFlow on ConsumerState<TransferScreen> {
   }
 
   Future<void> _sendTransfer() async {
-    final password = widget.masterPassword;
-    if (password == null || password.isEmpty) {
-      showUnlockBeforeSending(context);
+    final password = await promptMasterPassword(
+      context: context,
+      title: 'Confirm transfer',
+      actionLabel: 'Send',
+    );
+    if (!mounted || password == null) {
       return;
     }
     try {

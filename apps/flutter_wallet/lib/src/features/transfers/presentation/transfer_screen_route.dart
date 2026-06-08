@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models.dart';
 import '../../../qr_scanner.dart';
+import '../../settings/master_password_dialog.dart';
 import '../transfer_controller.dart';
 import 'transfer_draft_builder.dart';
 import 'transfer_error_presenter.dart';
@@ -21,7 +22,6 @@ class TransferScreen extends ConsumerStatefulWidget {
     this.wallets = const [],
     this.onSelectedWalletChanged,
     this.assets = const [],
-    this.masterPassword,
     this.onSent,
     this.scanPayload,
     this.importImagePayload,
@@ -32,7 +32,6 @@ class TransferScreen extends ConsumerStatefulWidget {
   final List<WalletSummary> wallets;
   final ValueChanged<WalletSummary>? onSelectedWalletChanged;
   final List<AssetSummary> assets;
-  final String? masterPassword;
   final Future<void> Function()? onSent;
   final Future<String> Function()? scanPayload;
   final Future<String?> Function()? importImagePayload;

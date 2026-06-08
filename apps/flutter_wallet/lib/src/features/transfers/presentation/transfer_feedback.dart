@@ -12,12 +12,6 @@ void showCreateWalletBeforePreview(BuildContext context) {
   );
 }
 
-void showUnlockBeforeSending(BuildContext context) {
-  ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(const SnackBar(content: Text('Unlock again before sending.')));
-}
-
 void showTransferBroadcasted(BuildContext context, String txHash) {
   ScaffoldMessenger.of(
     context,

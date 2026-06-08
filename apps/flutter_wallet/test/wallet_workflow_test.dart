@@ -71,7 +71,13 @@ void main() {
       await tester.tap(find.text('Send'));
       await tester.pumpAndSettle();
 
+      expect(api.sentAmount, isNull);
+      await tester.enterText(_textField('Master password'), 'send-password');
+      await tester.tap(find.widgetWithText(FilledButton, 'Send').last);
+      await tester.pumpAndSettle();
+
       expect(api.sentAmount, '1.25');
+      expect(api.sentPassword, 'send-password');
       expect(find.textContaining('0xabab'), findsOneWidget);
 
       await tester.tap(find.text('Settings'));
@@ -1076,6 +1082,7 @@ class _WorkflowApi implements WalletApi {
   String? addedTokenContract;
   String? previewedAmount;
   String? sentAmount;
+  String? sentPassword;
   String? updatedChain;
   String? updatedRpcUrl;
   String? updatedIndexerEndpoint;
@@ -1420,6 +1427,7 @@ class _WorkflowApi implements WalletApi {
     String password,
   ) async {
     sentAmount = draft.amount;
+    sentPassword = password;
     return const TransferResult(
       chain: 'ethereum',
       txHash: '0xabab',
