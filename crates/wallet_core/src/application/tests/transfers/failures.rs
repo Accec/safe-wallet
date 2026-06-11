@@ -268,3 +268,122 @@ fn send_transfer_rejects_trc20_insufficient_balance_before_broadcast() {
         vec!["/wallet/getaccount", "/wallet/triggerconstantcontract"]
     );
 }
+
+#[test]
+fn send_transfer_rejects_trc20_when_trx_fee_reserve_is_too_low() {
+    let rpc = TestRpcServer::tron_with_balances(
+        42_012,
+        "000000000000000000000000000000000000000000000001b1ae4d6e2ef50000",
+    );
+    let fixture = engine_fixture();
+
+    fixture
+        .engine
+        .auth()
+        .set_master_password("master-password")
+        .unwrap();
+    let wallet = fixture
+        .engine
+        .wallets()
+        .create_wallet("Primary", MNEMONIC, "master-password")
+        .unwrap();
+    fixture
+        .engine
+        .network()
+        .update_chain_rpc(ChainId::Tron, &rpc.url)
+        .unwrap();
+    let token = fixture
+        .engine
+        .assets()
+        .add_custom_token_with(
+            &static_token_client("USDT"),
+            ChainId::Tron,
+            "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7",
+            "USDT",
+        )
+        .unwrap();
+    let error = fixture
+        .engine
+        .transfers()
+        .send_transfer(
+            &TransferRequest {
+                wallet_id: wallet.id,
+                chain: ChainId::Tron,
+                asset_id: token.id,
+                to_address: "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7".to_string(),
+                amount: "2.5".to_string(),
+            },
+            "master-password",
+        )
+        .unwrap_err();
+
+    assert_eq!(error, WalletError::InsufficientFunds);
+    assert_eq!(rpc.paths(), vec!["/wallet/getaccount"]);
+}
+
+#[test]
+fn send_transfer_maps_tron_broadcast_fee_failure_to_insufficient_funds() {
+    let rpc = TestRpcServer::tron_with_balances_and_broadcast_response(
+        10_000_000,
+        "000000000000000000000000000000000000000000000001b1ae4d6e2ef50000",
+        serde_json::json!({
+            "result": false,
+            "code": "BANDWITH_ERROR",
+            "message": "4163636f756e742062616c616e6365206973206e6f7420656e6f756768"
+        }),
+    );
+    let fixture = engine_fixture();
+
+    fixture
+        .engine
+        .auth()
+        .set_master_password("master-password")
+        .unwrap();
+    let wallet = fixture
+        .engine
+        .wallets()
+        .create_wallet("Primary", MNEMONIC, "master-password")
+        .unwrap();
+    fixture
+        .engine
+        .network()
+        .update_chain_rpc(ChainId::Tron, &rpc.url)
+        .unwrap();
+    let token = fixture
+        .engine
+        .assets()
+        .add_custom_token_with(
+            &static_token_client("USDT"),
+            ChainId::Tron,
+            "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7",
+            "USDT",
+        )
+        .unwrap();
+    let error = fixture
+        .engine
+        .transfers()
+        .send_transfer(
+            &TransferRequest {
+                wallet_id: wallet.id,
+                chain: ChainId::Tron,
+                asset_id: token.id,
+                to_address: "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7".to_string(),
+                amount: "2.5".to_string(),
+            },
+            "master-password",
+        )
+        .unwrap_err();
+    let activity = fixture.engine.activity().list_activity(wallet.id).unwrap();
+
+    assert_eq!(error, WalletError::InsufficientFunds);
+    assert!(activity.is_empty());
+    assert_eq!(
+        rpc.paths(),
+        vec![
+            "/wallet/getaccount",
+            "/wallet/triggerconstantcontract",
+            "/wallet/triggersmartcontract",
+            "/wallet/broadcasttransaction"
+        ]
+    );
+}

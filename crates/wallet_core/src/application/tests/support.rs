@@ -191,6 +191,18 @@ impl TestRpcServer {
     }
 
     pub(super) fn tron_with_balances(native_balance: u64, token_balance: &'static str) -> Self {
+        Self::tron_with_balances_and_broadcast_response(
+            native_balance,
+            token_balance,
+            serde_json::json!({"result": true}),
+        )
+    }
+
+    pub(super) fn tron_with_balances_and_broadcast_response(
+        native_balance: u64,
+        token_balance: &'static str,
+        broadcast_response: serde_json::Value,
+    ) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let url = format!("http://{}", listener.local_addr().unwrap());
         let requests = Arc::new(Mutex::new(Vec::new()));
@@ -219,14 +231,24 @@ impl TestRpcServer {
                             "raw_data_hex": "0a020002"
                         }
                     }),
-                    "/wallet/broadcasttransaction" => serde_json::json!({
-                        "result": true,
-                        "txid": request
-                            .body
-                            .get("txID")
-                            .and_then(|value| value.as_str())
-                            .unwrap_or("tron-tx-id")
-                    }),
+                    "/wallet/broadcasttransaction" => {
+                        if broadcast_response
+                            .get("result")
+                            .and_then(|value| value.as_bool())
+                            == Some(true)
+                        {
+                            serde_json::json!({
+                                "result": true,
+                                "txid": request
+                                    .body
+                                    .get("txID")
+                                    .and_then(|value| value.as_str())
+                                    .unwrap_or("tron-tx-id")
+                            })
+                        } else {
+                            broadcast_response.clone()
+                        }
+                    }
                     _ => serde_json::json!({"result": false}),
                 };
                 recorded_requests.lock().unwrap().push(request);

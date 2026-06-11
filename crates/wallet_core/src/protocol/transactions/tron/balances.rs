@@ -7,6 +7,8 @@ use super::super::amount::decimal_amount_to_be_bytes;
 use super::super::encoding::{encode_tron_balance_of_parameter, hex_string_to_u256};
 use super::rpc;
 
+pub(super) const MIN_TRC20_FEE_RESERVE_SUN: u64 = 1_000_000;
+
 pub(super) fn ensure_native_balance(
     client: &Client,
     rpc_url: &str,
