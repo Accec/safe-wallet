@@ -4,12 +4,41 @@ use reqwest::blocking::Client;
 
 use super::amount::decimal_amount_to_u64;
 use super::encoding::tron_base58_to_hex;
-use super::{BroadcastedTransaction, TransferBroadcastDraft};
+use super::{BroadcastedTransaction, TransferBroadcastDraft, TransferResourceDraft};
 
 mod balances;
 mod builder;
+mod resources;
 mod rpc;
 mod signing;
+
+pub(super) fn resource_status(
+    client: &Client,
+    draft: &TransferResourceDraft<'_>,
+) -> Result<Option<crate::models::TransferResourceStatus>, WalletError> {
+    if draft.asset.kind != AssetKind::Trc20 {
+        return Ok(None);
+    }
+    let contract = draft
+        .asset
+        .contract_address
+        .as_deref()
+        .ok_or(WalletError::InvalidTokenContract)?;
+    let owner_address = tron_base58_to_hex(draft.from_address)?;
+    let contract_address = tron_base58_to_hex(contract)?;
+    resources::trc20_transfer_status(
+        client,
+        &resources::Trc20ResourceRequest {
+            rpc_url: draft.rpc_url,
+            owner_address: &owner_address,
+            contract_address: &contract_address,
+            to_address: draft.to_address,
+            amount: draft.amount,
+            decimals: draft.asset.decimals,
+        },
+    )
+    .map(Some)
+}
 
 pub(super) fn broadcast_transfer(
     client: &Client,
@@ -35,12 +64,28 @@ pub(super) fn broadcast_transfer(
                 .as_deref()
                 .ok_or(WalletError::InvalidTokenContract)?;
             let contract_address = tron_base58_to_hex(contract)?;
-            balances::ensure_native_balance(
-                client,
-                draft.rpc_url,
-                &owner_address,
-                balances::MIN_TRC20_FEE_RESERVE_SUN,
-            )?;
+            let resource_status = match draft.resource_status {
+                Some(status) => status.clone(),
+                None => resources::trc20_transfer_status(
+                    client,
+                    &resources::Trc20ResourceRequest {
+                        rpc_url: draft.rpc_url,
+                        owner_address: &owner_address,
+                        contract_address: &contract_address,
+                        to_address: draft.to_address,
+                        amount: draft.amount,
+                        decimals: draft.asset.decimals,
+                    },
+                )?,
+            };
+            if !resource_status.can_send_without_burning_trx {
+                if draft.block_if_energy_insufficient {
+                    return Err(WalletError::InsufficientEnergy);
+                }
+                if resource_status.trx_balance_sun < balances::MIN_TRC20_FEE_RESERVE_SUN {
+                    return Err(WalletError::InsufficientFunds);
+                }
+            }
             balances::ensure_token_balance(
                 client,
                 draft.rpc_url,

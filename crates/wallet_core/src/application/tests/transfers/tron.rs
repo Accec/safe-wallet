@@ -51,6 +51,7 @@ fn send_transfer_broadcasts_tron_native_transaction() {
                 asset_id: asset.id,
                 to_address: "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7".to_string(),
                 amount: "1".to_string(),
+                block_if_energy_insufficient: false,
             },
             "master-password",
         )
@@ -115,6 +116,7 @@ fn send_transfer_broadcasts_trc20_transaction() {
                 asset_id: token.id,
                 to_address: "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7".to_string(),
                 amount: "2.5".to_string(),
+                block_if_energy_insufficient: false,
             },
             "master-password",
         )
@@ -128,6 +130,8 @@ fn send_transfer_broadcasts_trc20_transaction() {
         rpc.paths(),
         vec![
             "/wallet/getaccount",
+            "/wallet/getaccountresource",
+            "/wallet/triggerconstantcontract",
             "/wallet/triggerconstantcontract",
             "/wallet/triggersmartcontract",
             "/wallet/broadcasttransaction"

@@ -55,6 +55,7 @@ fn send_transfer_broadcasts_evm_native_transaction_and_records_activity() {
                 asset_id: asset.id,
                 to_address: "0x0000000000000000000000000000000000000000".to_string(),
                 amount: "1".to_string(),
+                block_if_energy_insufficient: false,
             },
             "master-password",
         )

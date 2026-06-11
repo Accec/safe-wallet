@@ -38,6 +38,7 @@ void main() {
             onImportQrImage: () {},
             onPreviewTransfer: () {},
             onSendTransfer: () {},
+            onBlockIfEnergyInsufficientChanged: (_) {},
           ),
         ),
       ),
@@ -51,6 +52,132 @@ void main() {
     expect(find.widgetWithText(OutlinedButton, 'Import QR'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Preview'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Send'), findsNothing);
+  });
+
+  testWidgets('transfer form shows energy status and blocks send by default', (
+    tester,
+  ) async {
+    bool? blockPreference;
+    final recipientController = TextEditingController();
+    final amountController = TextEditingController();
+    addTearDown(recipientController.dispose);
+    addTearDown(amountController.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TransferForm(
+            assets: const [],
+            selectedAssetId: null,
+            onAssetChanged: (_) {},
+            recipientController: recipientController,
+            amountController: amountController,
+            scanning: false,
+            importing: false,
+            transfer: const TransferState(
+              preview: TransferPreview(
+                chain: 'tron',
+                fromAddress: 'TFrom',
+                toAddress: 'TTo',
+                assetSymbol: 'USDT',
+                amount: '2.5',
+                feeEstimate: 'TRON resources',
+                rpcUrl: 'https://tron-rpc.publicnode.com',
+                resourceStatus: TransferResourceStatus(
+                  energyAvailable: 4000,
+                  energyRequired: 8624,
+                  bandwidthAvailable: 74,
+                  trxBalanceSun: 42012,
+                  trxFeeReserveRequiredSun: 1000000,
+                  canSendWithoutBurningTrx: false,
+                ),
+              ),
+            ),
+            onScanQr: () {},
+            onImportQrImage: () {},
+            onPreviewTransfer: () {},
+            onSendTransfer: () {},
+            onBlockIfEnergyInsufficientChanged: (value) {
+              blockPreference = value;
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Energy: 4000 / 8624'), findsOneWidget);
+    expect(find.textContaining('Bandwidth: 74'), findsOneWidget);
+    expect(
+      find.textContaining('TRX reserve: 0.042012 TRX / 1 TRX'),
+      findsOneWidget,
+    );
+    expect(
+      find.widgetWithText(
+        CheckboxListTile,
+        'Block when energy is insufficient',
+      ),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(FilledButton, 'Send'), findsNothing);
+
+    await tester.tap(find.byType(CheckboxListTile));
+    await tester.pumpAndSettle();
+
+    expect(blockPreference, false);
+  });
+
+  testWidgets('transfer form allows send when energy is sufficient', (
+    tester,
+  ) async {
+    final recipientController = TextEditingController();
+    final amountController = TextEditingController();
+    addTearDown(recipientController.dispose);
+    addTearDown(amountController.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TransferForm(
+            assets: const [],
+            selectedAssetId: null,
+            onAssetChanged: (_) {},
+            recipientController: recipientController,
+            amountController: amountController,
+            scanning: false,
+            importing: false,
+            transfer: const TransferState(
+              preview: TransferPreview(
+                chain: 'tron',
+                fromAddress: 'TFrom',
+                toAddress: 'TTo',
+                assetSymbol: 'USDT',
+                amount: '2.5',
+                feeEstimate: 'TRON resources',
+                rpcUrl: 'https://tron-rpc.publicnode.com',
+                resourceStatus: TransferResourceStatus(
+                  energyAvailable: 69969,
+                  energyRequired: 8624,
+                  bandwidthAvailable: 74,
+                  trxBalanceSun: 42012,
+                  trxFeeReserveRequiredSun: 1000000,
+                  canSendWithoutBurningTrx: true,
+                ),
+              ),
+            ),
+            onScanQr: () {},
+            onImportQrImage: () {},
+            onPreviewTransfer: () {},
+            onSendTransfer: () {},
+            onBlockIfEnergyInsufficientChanged: (_) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Energy: 69969 / 8624'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Send'), findsOneWidget);
   });
 }
 

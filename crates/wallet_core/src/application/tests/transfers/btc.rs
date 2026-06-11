@@ -52,6 +52,7 @@ fn send_transfer_broadcasts_btc_transaction_with_esplora_utxos() {
                 asset_id: asset.id,
                 to_address: "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu".to_string(),
                 amount: "0.001".to_string(),
+                block_if_energy_insufficient: false,
             },
             "master-password",
         )

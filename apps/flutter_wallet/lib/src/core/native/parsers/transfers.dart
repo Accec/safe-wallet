@@ -14,6 +14,32 @@ TransferPreview transferPreviewFromNativeJson(Object? value) {
     amount: nativeStringField(value, 'amount'),
     feeEstimate: nativeStringField(value, 'fee_estimate'),
     rpcUrl: nativeStringField(value, 'rpc_url'),
+    resourceStatus: transferResourceStatusFromNativeJson(
+      value['resource_status'],
+    ),
+  );
+}
+
+TransferResourceStatus? transferResourceStatusFromNativeJson(Object? value) {
+  if (value == null) {
+    return null;
+  }
+  if (value is! Map<String, dynamic>) {
+    throw const WalletApiException('Invalid native response');
+  }
+  return TransferResourceStatus(
+    energyAvailable: nativeIntField(value, 'energy_available'),
+    energyRequired: nativeIntField(value, 'energy_required'),
+    bandwidthAvailable: nativeIntField(value, 'bandwidth_available'),
+    trxBalanceSun: nativeIntField(value, 'trx_balance_sun'),
+    trxFeeReserveRequiredSun: nativeIntField(
+      value,
+      'trx_fee_reserve_required_sun',
+    ),
+    canSendWithoutBurningTrx: nativeBoolField(
+      value,
+      'can_send_without_burning_trx',
+    ),
   );
 }
 

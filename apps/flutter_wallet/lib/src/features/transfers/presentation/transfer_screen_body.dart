@@ -19,6 +19,7 @@ class TransferScreenBody extends StatelessWidget {
     required this.onImportQrImage,
     required this.onPreviewTransfer,
     required this.onSendTransfer,
+    required this.onBlockIfEnergyInsufficientChanged,
   });
 
   final List<AssetSummary> assets;
@@ -33,6 +34,7 @@ class TransferScreenBody extends StatelessWidget {
   final VoidCallback onImportQrImage;
   final VoidCallback onPreviewTransfer;
   final VoidCallback onSendTransfer;
+  final ValueChanged<bool> onBlockIfEnergyInsufficientChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +53,7 @@ class TransferScreenBody extends StatelessWidget {
         onImportQrImage: onImportQrImage,
         onPreviewTransfer: onPreviewTransfer,
         onSendTransfer: onSendTransfer,
+        onBlockIfEnergyInsufficientChanged: onBlockIfEnergyInsufficientChanged,
       ),
     );
   }

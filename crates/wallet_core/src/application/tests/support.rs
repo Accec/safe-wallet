@@ -191,9 +191,14 @@ impl TestRpcServer {
     }
 
     pub(super) fn tron_with_balances(native_balance: u64, token_balance: &'static str) -> Self {
-        Self::tron_with_balances_and_broadcast_response(
+        Self::tron_with_resources_and_broadcast_response(
             native_balance,
             token_balance,
+            200_000,
+            0,
+            600,
+            0,
+            8_624,
             serde_json::json!({"result": true}),
         )
     }
@@ -201,6 +206,49 @@ impl TestRpcServer {
     pub(super) fn tron_with_balances_and_broadcast_response(
         native_balance: u64,
         token_balance: &'static str,
+        broadcast_response: serde_json::Value,
+    ) -> Self {
+        Self::tron_with_resources_and_broadcast_response(
+            native_balance,
+            token_balance,
+            200_000,
+            0,
+            600,
+            0,
+            8_624,
+            broadcast_response,
+        )
+    }
+
+    pub(super) fn tron_with_resources(
+        native_balance: u64,
+        token_balance: &'static str,
+        energy_limit: u64,
+        energy_used: u64,
+        free_net_limit: u64,
+        free_net_used: u64,
+        transfer_energy_required: u64,
+    ) -> Self {
+        Self::tron_with_resources_and_broadcast_response(
+            native_balance,
+            token_balance,
+            energy_limit,
+            energy_used,
+            free_net_limit,
+            free_net_used,
+            transfer_energy_required,
+            serde_json::json!({"result": true}),
+        )
+    }
+
+    pub(super) fn tron_with_resources_and_broadcast_response(
+        native_balance: u64,
+        token_balance: &'static str,
+        energy_limit: u64,
+        energy_used: u64,
+        free_net_limit: u64,
+        free_net_used: u64,
+        transfer_energy_required: u64,
         broadcast_response: serde_json::Value,
     ) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -215,10 +263,30 @@ impl TestRpcServer {
                     "/wallet/getaccount" => serde_json::json!({
                         "balance": native_balance
                     }),
-                    "/wallet/triggerconstantcontract" => serde_json::json!({
-                        "result": {"result": true},
-                        "constant_result": [token_balance]
+                    "/wallet/getaccountresource" => serde_json::json!({
+                        "freeNetLimit": free_net_limit,
+                        "freeNetUsed": free_net_used,
+                        "EnergyLimit": energy_limit,
+                        "EnergyUsed": energy_used
                     }),
+                    "/wallet/triggerconstantcontract" => {
+                        if request
+                            .body
+                            .get("function_selector")
+                            .and_then(|value| value.as_str())
+                            == Some("transfer(address,uint256)")
+                        {
+                            serde_json::json!({
+                                "result": {"result": true},
+                                "energy_used": transfer_energy_required
+                            })
+                        } else {
+                            serde_json::json!({
+                                "result": {"result": true},
+                                "constant_result": [token_balance]
+                            })
+                        }
+                    }
                     "/wallet/createtransaction" => serde_json::json!({
                         "txID": "tron-native-tx-id",
                         "raw_data": {},

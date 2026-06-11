@@ -91,6 +91,9 @@ class _TransferScreenState extends ConsumerState<TransferScreen>
       onImportQrImage: _startImageImport,
       onPreviewTransfer: _previewTransfer,
       onSendTransfer: _sendTransfer,
+      onBlockIfEnergyInsufficientChanged: ref
+          .read(transferControllerProvider.notifier)
+          .setBlockIfEnergyInsufficient,
     );
   }
 
@@ -101,5 +104,8 @@ class _TransferScreenState extends ConsumerState<TransferScreen>
     selectedAssetId: _selectedAssetId,
     recipientController: _recipientController,
     amountController: _amountController,
+    blockIfEnergyInsufficient: ref
+        .read(transferControllerProvider)
+        .blockIfEnergyInsufficient,
   );
 }

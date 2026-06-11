@@ -313,6 +313,7 @@ fn tron_transaction_broadcasting_is_split_by_protocol_responsibility() {
         "mod.rs",
         "balances.rs",
         "builder.rs",
+        "resources.rs",
         "rpc.rs",
         "signing.rs",
         "tests.rs",

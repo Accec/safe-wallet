@@ -1,5 +1,7 @@
 use crate::error::WalletError;
-use crate::models::{Asset, ChainId, NetworkPrivacySettings, TransferPreview};
+use crate::models::{
+    Asset, ChainId, NetworkPrivacySettings, TransferPreview, TransferResourceStatus,
+};
 mod amount;
 mod btc;
 mod encoding;
@@ -22,6 +24,17 @@ pub struct TransferBroadcastDraft<'a> {
     pub amount: &'a str,
     pub asset: &'a Asset,
     pub signing_key: &'a SigningKey,
+    pub block_if_energy_insufficient: bool,
+    pub resource_status: Option<&'a TransferResourceStatus>,
+}
+
+pub struct TransferResourceDraft<'a> {
+    pub chain: ChainId,
+    pub rpc_url: &'a str,
+    pub from_address: &'a str,
+    pub to_address: &'a str,
+    pub amount: &'a str,
+    pub asset: &'a Asset,
 }
 
 pub trait TransactionBroadcastClient {
@@ -40,6 +53,33 @@ impl RpcTransactionBroadcastClient {
         let client =
             crate::protocol::network::build_http_client(settings, Duration::from_secs(18))?;
         Ok(Self { client })
+    }
+}
+
+pub struct RpcTransferResourceClient {
+    client: Client,
+}
+
+impl RpcTransferResourceClient {
+    pub fn new(settings: &NetworkPrivacySettings) -> Result<Self, WalletError> {
+        let client =
+            crate::protocol::network::build_http_client(settings, Duration::from_secs(12))?;
+        Ok(Self { client })
+    }
+
+    pub fn resource_status(
+        &self,
+        draft: &TransferResourceDraft<'_>,
+    ) -> Result<Option<TransferResourceStatus>, WalletError> {
+        match draft.chain {
+            ChainId::Tron => tron::resource_status(&self.client, draft),
+            ChainId::Ethereum
+            | ChainId::Bsc
+            | ChainId::Polygon
+            | ChainId::Arbitrum
+            | ChainId::Optimism
+            | ChainId::Btc => Ok(None),
+        }
     }
 }
 

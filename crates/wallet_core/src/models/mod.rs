@@ -17,5 +17,5 @@ pub use multisig::{
 };
 pub use network::{ChainSettings, NetworkPrivacySettings, ProxyMode};
 pub use qr::ParsedPayment;
-pub use transfers::{TransferPreview, TransferRequest, TransferResult};
+pub use transfers::{TransferPreview, TransferRequest, TransferResourceStatus, TransferResult};
 pub use wallets::{Account, KeystoreExport, WalletSummary};

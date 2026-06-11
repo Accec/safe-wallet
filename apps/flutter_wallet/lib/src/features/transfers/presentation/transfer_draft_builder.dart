@@ -9,6 +9,7 @@ class TransferDraftBuilder {
     required this.selectedAssetId,
     required this.recipientController,
     required this.amountController,
+    required this.blockIfEnergyInsufficient,
   });
 
   final WalletSummary? wallet;
@@ -16,6 +17,7 @@ class TransferDraftBuilder {
   final String? selectedAssetId;
   final TextEditingController recipientController;
   final TextEditingController amountController;
+  final bool blockIfEnergyInsufficient;
 
   static String? firstAvailableAssetId(List<AssetSummary> assets) {
     return assets.isEmpty ? null : assets.first.id;
@@ -45,6 +47,7 @@ class TransferDraftBuilder {
       assetId: asset.id,
       toAddress: recipientController.text.trim(),
       amount: amountController.text.trim(),
+      blockIfEnergyInsufficient: blockIfEnergyInsufficient,
     );
   }
 

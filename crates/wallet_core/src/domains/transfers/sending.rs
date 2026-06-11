@@ -27,6 +27,8 @@ pub(super) fn send_transfer_with<C: TransactionBroadcastClient>(
         amount: &preview.amount,
         asset: &asset,
         signing_key: &signing_key,
+        block_if_energy_insufficient: request.block_if_energy_insufficient,
+        resource_status: preview.resource_status.as_ref(),
     })?;
     let status = "broadcasted";
     database

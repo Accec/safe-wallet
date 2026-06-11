@@ -9,6 +9,8 @@ pub struct TransferRequest {
     pub asset_id: Uuid,
     pub to_address: String,
     pub amount: String,
+    #[serde(default)]
+    pub block_if_energy_insufficient: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -20,6 +22,17 @@ pub struct TransferPreview {
     pub amount: String,
     pub fee_estimate: String,
     pub rpc_url: String,
+    pub resource_status: Option<TransferResourceStatus>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TransferResourceStatus {
+    pub energy_available: u64,
+    pub energy_required: u64,
+    pub bandwidth_available: u64,
+    pub trx_balance_sun: u64,
+    pub trx_fee_reserve_required_sun: u64,
+    pub can_send_without_burning_trx: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

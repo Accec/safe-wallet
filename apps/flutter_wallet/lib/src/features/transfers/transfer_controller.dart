@@ -10,18 +10,30 @@ class TransferState {
   const TransferState({
     this.previewing = false,
     this.sending = false,
+    this.blockIfEnergyInsufficient = true,
     this.preview,
     this.draft,
   });
 
   final bool previewing;
   final bool sending;
+  final bool blockIfEnergyInsufficient;
   final TransferPreview? preview;
   final TransferDraft? draft;
+
+  bool get energyBlocked {
+    final resourceStatus = preview?.resourceStatus;
+    return blockIfEnergyInsufficient &&
+        resourceStatus != null &&
+        !resourceStatus.hasEnoughEnergy;
+  }
+
+  bool get canSend => preview != null && !energyBlocked;
 
   TransferState copyWith({
     bool? previewing,
     bool? sending,
+    bool? blockIfEnergyInsufficient,
     TransferPreview? preview,
     TransferDraft? draft,
     bool clearPreview = false,
@@ -30,6 +42,8 @@ class TransferState {
     return TransferState(
       previewing: previewing ?? this.previewing,
       sending: sending ?? this.sending,
+      blockIfEnergyInsufficient:
+          blockIfEnergyInsufficient ?? this.blockIfEnergyInsufficient,
       preview: clearPreview ? null : preview ?? this.preview,
       draft: clearDraft ? null : draft ?? this.draft,
     );
@@ -66,6 +80,9 @@ class TransferController extends Notifier<TransferState> {
     if (draft == null) {
       throw const TransferStateException('Unlock again before sending.');
     }
+    if (state.energyBlocked) {
+      throw const TransferStateException('Insufficient energy.');
+    }
     state = state.copyWith(sending: true);
     try {
       final result = await _clients.transfers.send(draft, password);
@@ -79,6 +96,13 @@ class TransferController extends Notifier<TransferState> {
 
   void clearPreview() {
     state = state.copyWith(clearPreview: true, clearDraft: true);
+  }
+
+  void setBlockIfEnergyInsufficient(bool value) {
+    state = state.copyWith(
+      blockIfEnergyInsufficient: value,
+      draft: state.draft?.copyWith(blockIfEnergyInsufficient: value),
+    );
   }
 }
 

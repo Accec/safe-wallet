@@ -59,6 +59,7 @@ fn send_custom_token_broadcasts_erc20_transfer_data() {
                 asset_id: token.id,
                 to_address: "0x0000000000000000000000000000000000000000".to_string(),
                 amount: "2".to_string(),
+                block_if_energy_insufficient: false,
             },
             "master-password",
         )

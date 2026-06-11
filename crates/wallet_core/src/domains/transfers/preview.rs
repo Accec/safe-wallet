@@ -1,6 +1,7 @@
 use crate::domains::validation::{fee_estimate_for_chain, validate_chain_address};
 use crate::error::WalletError;
 use crate::models::{TransferPreview, TransferRequest};
+use crate::protocol::transactions::{RpcTransferResourceClient, TransferResourceDraft};
 use crate::storage::WalletDatabase;
 
 pub(super) fn preview_transfer(
@@ -23,6 +24,19 @@ pub(super) fn preview_transfer(
         return Err(WalletError::InvalidAddress);
     }
     let settings = database.network().chain_settings(request.chain)?;
+    let privacy_settings = database.network().network_privacy_settings()?;
+    let rpc_url = settings
+        .user_rpc_url
+        .unwrap_or_else(|| settings.default_rpc_url);
+    let resource_client = RpcTransferResourceClient::new(&privacy_settings)?;
+    let resource_status = resource_client.resource_status(&TransferResourceDraft {
+        chain: request.chain,
+        rpc_url: &rpc_url,
+        from_address: &account.address,
+        to_address: &request.to_address,
+        amount: &request.amount,
+        asset: &asset,
+    })?;
     Ok(TransferPreview {
         chain: request.chain,
         from_address: account.address,
@@ -30,8 +44,7 @@ pub(super) fn preview_transfer(
         asset_symbol: asset.symbol,
         amount: request.amount.clone(),
         fee_estimate: fee_estimate_for_chain(request.chain).to_string(),
-        rpc_url: settings
-            .user_rpc_url
-            .unwrap_or_else(|| settings.default_rpc_url),
+        rpc_url,
+        resource_status,
     })
 }

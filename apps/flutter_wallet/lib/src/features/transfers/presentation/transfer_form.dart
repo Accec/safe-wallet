@@ -21,6 +21,7 @@ class TransferForm extends StatelessWidget {
     required this.onImportQrImage,
     required this.onPreviewTransfer,
     required this.onSendTransfer,
+    required this.onBlockIfEnergyInsufficientChanged,
   });
 
   final List<AssetSummary> assets;
@@ -35,6 +36,7 @@ class TransferForm extends StatelessWidget {
   final VoidCallback onImportQrImage;
   final VoidCallback onPreviewTransfer;
   final VoidCallback onSendTransfer;
+  final ValueChanged<bool> onBlockIfEnergyInsufficientChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -71,13 +73,18 @@ class TransferForm extends StatelessWidget {
           importing: importing,
           previewing: transfer.previewing,
           sending: transfer.sending,
-          canSend: transfer.preview != null,
+          canSend: transfer.canSend,
           onScanQr: onScanQr,
           onImportQrImage: onImportQrImage,
           onPreviewTransfer: onPreviewTransfer,
           onSendTransfer: onSendTransfer,
         ),
-        TransferPreviewSection(preview: transfer.preview),
+        TransferPreviewSection(
+          preview: transfer.preview,
+          blockIfEnergyInsufficient: transfer.blockIfEnergyInsufficient,
+          onBlockIfEnergyInsufficientChanged:
+              onBlockIfEnergyInsufficientChanged,
+        ),
       ],
     );
   }

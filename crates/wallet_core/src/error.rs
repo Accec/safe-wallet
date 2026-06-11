@@ -32,6 +32,8 @@ pub enum WalletError {
     UnauthorizedMultisigSigner,
     #[error("Insufficient funds")]
     InsufficientFunds,
+    #[error("Insufficient energy")]
+    InsufficientEnergy,
     #[error("Network unavailable")]
     NetworkUnavailable,
     #[error("Chain transaction broadcast is not supported")]
@@ -68,6 +70,7 @@ impl WalletError {
             WalletError::DuplicateMultisigSignature => "Signature already exists",
             WalletError::UnauthorizedMultisigSigner => "Signer is not an owner",
             WalletError::InsufficientFunds => "Insufficient funds",
+            WalletError::InsufficientEnergy => "Insufficient energy",
             WalletError::ProxyConnectionFailed => "Proxy connection failed",
         }
     }

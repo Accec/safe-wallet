@@ -33,6 +33,7 @@ mod tests {
                 amount: request.amount.clone(),
                 fee_estimate: "0.00042".to_string(),
                 rpc_url: "https://ethereum-rpc.publicnode.com".to_string(),
+                resource_status: None,
             })
         }
     }
@@ -45,6 +46,7 @@ mod tests {
             asset_id: Uuid::new_v4(),
             to_address: "0x0000000000000000000000000000000000000000".to_string(),
             amount: "1.25".to_string(),
+            block_if_energy_insufficient: false,
         };
 
         let preview = preview_transfer(&FakeClient, &request).unwrap();

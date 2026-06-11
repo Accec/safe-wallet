@@ -19,6 +19,7 @@ class TransferDraft {
     required this.assetId,
     required this.toAddress,
     required this.amount,
+    this.blockIfEnergyInsufficient = false,
   });
 
   final String walletId;
@@ -26,6 +27,19 @@ class TransferDraft {
   final String assetId;
   final String toAddress;
   final String amount;
+  final bool blockIfEnergyInsufficient;
+
+  TransferDraft copyWith({bool? blockIfEnergyInsufficient}) {
+    return TransferDraft(
+      walletId: walletId,
+      chain: chain,
+      assetId: assetId,
+      toAddress: toAddress,
+      amount: amount,
+      blockIfEnergyInsufficient:
+          blockIfEnergyInsufficient ?? this.blockIfEnergyInsufficient,
+    );
+  }
 
   Map<String, Object?> toJson() {
     return {
@@ -34,8 +48,29 @@ class TransferDraft {
       'asset_id': assetId,
       'to_address': toAddress,
       'amount': amount,
+      'block_if_energy_insufficient': blockIfEnergyInsufficient,
     };
   }
+}
+
+class TransferResourceStatus {
+  const TransferResourceStatus({
+    required this.energyAvailable,
+    required this.energyRequired,
+    required this.bandwidthAvailable,
+    required this.trxBalanceSun,
+    required this.trxFeeReserveRequiredSun,
+    required this.canSendWithoutBurningTrx,
+  });
+
+  final int energyAvailable;
+  final int energyRequired;
+  final int bandwidthAvailable;
+  final int trxBalanceSun;
+  final int trxFeeReserveRequiredSun;
+  final bool canSendWithoutBurningTrx;
+
+  bool get hasEnoughEnergy => energyAvailable >= energyRequired;
 }
 
 class TransferPreview {
@@ -47,6 +82,7 @@ class TransferPreview {
     required this.amount,
     required this.feeEstimate,
     required this.rpcUrl,
+    this.resourceStatus,
   });
 
   final String chain;
@@ -56,6 +92,7 @@ class TransferPreview {
   final String amount;
   final String feeEstimate;
   final String rpcUrl;
+  final TransferResourceStatus? resourceStatus;
 }
 
 class TransferResult {
