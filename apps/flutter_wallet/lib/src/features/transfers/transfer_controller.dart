@@ -28,7 +28,13 @@ class TransferState {
         !resourceStatus.hasEnoughEnergy;
   }
 
-  bool get canSend => preview != null && !energyBlocked;
+  bool get resourceFeeBlocked {
+    final resourceStatus = preview?.resourceStatus;
+    return resourceStatus != null &&
+        !resourceStatus.hasEnoughTrxForResourceFees;
+  }
+
+  bool get canSend => preview != null && !energyBlocked && !resourceFeeBlocked;
 
   TransferState copyWith({
     bool? previewing,
@@ -82,6 +88,9 @@ class TransferController extends Notifier<TransferState> {
     }
     if (state.energyBlocked) {
       throw const TransferStateException('Insufficient energy.');
+    }
+    if (state.resourceFeeBlocked) {
+      throw const TransferStateException('Insufficient TRX for network fees.');
     }
     state = state.copyWith(sending: true);
     try {

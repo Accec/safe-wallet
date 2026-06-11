@@ -127,9 +127,10 @@ fn transfer_preview_includes_tron_trc20_energy_status() {
     assert_eq!(status.energy_available, 69_969);
     assert_eq!(status.energy_required, 8_624);
     assert_eq!(status.bandwidth_available, 74);
+    assert_eq!(status.bandwidth_required, 350);
     assert_eq!(status.trx_balance_sun, 42_012);
-    assert_eq!(status.trx_fee_reserve_required_sun, 1_000_000);
-    assert!(status.can_send_without_burning_trx);
+    assert_eq!(status.trx_fee_reserve_required_sun, 350_000);
+    assert!(!status.can_send_without_burning_trx);
     assert_eq!(
         rpc.paths(),
         vec![

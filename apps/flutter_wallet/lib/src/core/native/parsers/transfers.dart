@@ -31,6 +31,7 @@ TransferResourceStatus? transferResourceStatusFromNativeJson(Object? value) {
     energyAvailable: nativeIntField(value, 'energy_available'),
     energyRequired: nativeIntField(value, 'energy_required'),
     bandwidthAvailable: nativeIntField(value, 'bandwidth_available'),
+    bandwidthRequired: nativeIntField(value, 'bandwidth_required'),
     trxBalanceSun: nativeIntField(value, 'trx_balance_sun'),
     trxFeeReserveRequiredSun: nativeIntField(
       value,

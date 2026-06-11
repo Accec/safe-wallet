@@ -398,6 +398,71 @@ fn send_transfer_blocks_trc20_when_energy_policy_is_enabled() {
 }
 
 #[test]
+fn send_transfer_rejects_tron_token_when_bandwidth_burn_exceeds_trx_balance() {
+    let rpc = TestRpcServer::tron_with_resources(
+        40_000,
+        "000000000000000000000000000000000000000000000001b1ae4d6e2ef50000",
+        200_000,
+        0,
+        103,
+        0,
+        8_624,
+    );
+    let fixture = engine_fixture();
+
+    fixture
+        .engine
+        .auth()
+        .set_master_password("master-password")
+        .unwrap();
+    let wallet = fixture
+        .engine
+        .wallets()
+        .create_wallet("Primary", MNEMONIC, "master-password")
+        .unwrap();
+    fixture
+        .engine
+        .network()
+        .update_chain_rpc(ChainId::Tron, &rpc.url)
+        .unwrap();
+    let token = fixture
+        .engine
+        .assets()
+        .add_custom_token_with(
+            &static_token_client("USDT"),
+            ChainId::Tron,
+            "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7",
+            "USDT",
+        )
+        .unwrap();
+    let error = fixture
+        .engine
+        .transfers()
+        .send_transfer(
+            &TransferRequest {
+                wallet_id: wallet.id,
+                chain: ChainId::Tron,
+                asset_id: token.id,
+                to_address: "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7".to_string(),
+                amount: "2.5".to_string(),
+                block_if_energy_insufficient: true,
+            },
+            "master-password",
+        )
+        .unwrap_err();
+
+    assert_eq!(error, WalletError::InsufficientFunds);
+    assert_eq!(
+        rpc.paths(),
+        vec![
+            "/wallet/getaccount",
+            "/wallet/getaccountresource",
+            "/wallet/triggerconstantcontract"
+        ]
+    );
+}
+
+#[test]
 fn send_transfer_maps_tron_broadcast_fee_failure_to_insufficient_funds() {
     let rpc = TestRpcServer::tron_with_balances_and_broadcast_response(
         10_000_000,

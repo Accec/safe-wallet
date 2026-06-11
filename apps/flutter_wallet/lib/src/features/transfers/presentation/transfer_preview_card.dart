@@ -68,10 +68,15 @@ class TransferPreviewCard extends StatelessWidget {
               'Energy: ${resourceStatus.energyAvailable} / ${resourceStatus.energyRequired}'
               '${resourceStatus.hasEnoughEnergy ? '' : ' (insufficient)'}',
             ),
-            Text('Bandwidth: ${resourceStatus.bandwidthAvailable}'),
             Text(
-              'TRX reserve: ${_formatSun(resourceStatus.trxBalanceSun)} / '
-              '${_formatSun(resourceStatus.trxFeeReserveRequiredSun)}',
+              'Bandwidth: ${resourceStatus.bandwidthAvailable} / '
+              '${resourceStatus.bandwidthRequired}'
+              '${resourceStatus.hasEnoughBandwidth ? '' : ' (will burn TRX)'}',
+            ),
+            Text(
+              'TRX fees: ${_formatSun(resourceStatus.trxBalanceSun)} / '
+              '${_formatSun(resourceStatus.trxFeeReserveRequiredSun)}'
+              '${resourceStatus.hasEnoughTrxForResourceFees ? '' : ' (insufficient)'}',
             ),
           ],
         ],

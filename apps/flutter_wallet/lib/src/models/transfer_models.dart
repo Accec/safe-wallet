@@ -58,6 +58,7 @@ class TransferResourceStatus {
     required this.energyAvailable,
     required this.energyRequired,
     required this.bandwidthAvailable,
+    required this.bandwidthRequired,
     required this.trxBalanceSun,
     required this.trxFeeReserveRequiredSun,
     required this.canSendWithoutBurningTrx,
@@ -66,11 +67,17 @@ class TransferResourceStatus {
   final int energyAvailable;
   final int energyRequired;
   final int bandwidthAvailable;
+  final int bandwidthRequired;
   final int trxBalanceSun;
   final int trxFeeReserveRequiredSun;
   final bool canSendWithoutBurningTrx;
 
   bool get hasEnoughEnergy => energyAvailable >= energyRequired;
+
+  bool get hasEnoughBandwidth => bandwidthAvailable >= bandwidthRequired;
+
+  bool get hasEnoughTrxForResourceFees =>
+      trxBalanceSun >= trxFeeReserveRequiredSun;
 }
 
 class TransferPreview {

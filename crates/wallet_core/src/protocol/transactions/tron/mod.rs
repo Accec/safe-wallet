@@ -78,13 +78,13 @@ pub(super) fn broadcast_transfer(
                     },
                 )?,
             };
-            if !resource_status.can_send_without_burning_trx {
-                if draft.block_if_energy_insufficient {
-                    return Err(WalletError::InsufficientEnergy);
-                }
-                if resource_status.trx_balance_sun < balances::MIN_TRC20_FEE_RESERVE_SUN {
-                    return Err(WalletError::InsufficientFunds);
-                }
+            if resource_status.energy_available < resource_status.energy_required
+                && draft.block_if_energy_insufficient
+            {
+                return Err(WalletError::InsufficientEnergy);
+            }
+            if resource_status.trx_balance_sun < resource_status.trx_fee_reserve_required_sun {
+                return Err(WalletError::InsufficientFunds);
             }
             balances::ensure_token_balance(
                 client,

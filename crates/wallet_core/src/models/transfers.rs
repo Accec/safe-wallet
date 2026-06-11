@@ -30,6 +30,7 @@ pub struct TransferResourceStatus {
     pub energy_available: u64,
     pub energy_required: u64,
     pub bandwidth_available: u64,
+    pub bandwidth_required: u64,
     pub trx_balance_sun: u64,
     pub trx_fee_reserve_required_sun: u64,
     pub can_send_without_burning_trx: bool,

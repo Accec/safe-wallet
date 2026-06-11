@@ -87,8 +87,9 @@ void main() {
                   energyAvailable: 4000,
                   energyRequired: 8624,
                   bandwidthAvailable: 74,
+                  bandwidthRequired: 350,
                   trxBalanceSun: 42012,
-                  trxFeeReserveRequiredSun: 1000000,
+                  trxFeeReserveRequiredSun: 350000,
                   canSendWithoutBurningTrx: false,
                 ),
               ),
@@ -107,9 +108,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Energy: 4000 / 8624'), findsOneWidget);
-    expect(find.textContaining('Bandwidth: 74'), findsOneWidget);
+    expect(find.textContaining('Bandwidth: 74 / 350'), findsOneWidget);
     expect(
-      find.textContaining('TRX reserve: 0.042012 TRX / 1 TRX'),
+      find.textContaining('TRX fees: 0.042012 TRX / 0.35 TRX'),
       findsOneWidget,
     );
     expect(
@@ -158,9 +159,10 @@ void main() {
                 resourceStatus: TransferResourceStatus(
                   energyAvailable: 69969,
                   energyRequired: 8624,
-                  bandwidthAvailable: 74,
+                  bandwidthAvailable: 600,
+                  bandwidthRequired: 350,
                   trxBalanceSun: 42012,
-                  trxFeeReserveRequiredSun: 1000000,
+                  trxFeeReserveRequiredSun: 0,
                   canSendWithoutBurningTrx: true,
                 ),
               ),
@@ -179,6 +181,66 @@ void main() {
     expect(find.textContaining('Energy: 69969 / 8624'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Send'), findsOneWidget);
   });
+
+  testWidgets(
+    'transfer form hides send when bandwidth burn exceeds TRX balance',
+    (tester) async {
+      final recipientController = TextEditingController();
+      final amountController = TextEditingController();
+      addTearDown(recipientController.dispose);
+      addTearDown(amountController.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TransferForm(
+              assets: const [],
+              selectedAssetId: null,
+              onAssetChanged: (_) {},
+              recipientController: recipientController,
+              amountController: amountController,
+              scanning: false,
+              importing: false,
+              transfer: const TransferState(
+                preview: TransferPreview(
+                  chain: 'tron',
+                  fromAddress: 'TFrom',
+                  toAddress: 'TTo',
+                  assetSymbol: 'USDT',
+                  amount: '2.5',
+                  feeEstimate: 'TRON resources',
+                  rpcUrl: 'https://tron-rpc.publicnode.com',
+                  resourceStatus: TransferResourceStatus(
+                    energyAvailable: 69969,
+                    energyRequired: 8624,
+                    bandwidthAvailable: 103,
+                    bandwidthRequired: 350,
+                    trxBalanceSun: 40000,
+                    trxFeeReserveRequiredSun: 350000,
+                    canSendWithoutBurningTrx: false,
+                  ),
+                ),
+              ),
+              onScanQr: () {},
+              onImportQrImage: () {},
+              onPreviewTransfer: () {},
+              onSendTransfer: () {},
+              onBlockIfEnergyInsufficientChanged: (_) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Energy: 69969 / 8624'), findsOneWidget);
+      expect(find.textContaining('Bandwidth: 103 / 350'), findsOneWidget);
+      expect(
+        find.textContaining('TRX fees: 0.04 TRX / 0.35 TRX'),
+        findsOneWidget,
+      );
+      expect(find.widgetWithText(FilledButton, 'Send'), findsNothing);
+    },
+  );
 }
 
 Finder _textField(String label) {
